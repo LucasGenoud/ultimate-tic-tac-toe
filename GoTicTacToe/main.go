@@ -1,6 +1,7 @@
 package main
 
 import (
+	"GoTicTacToe/src/symbolDrawer"
 	"bytes"
 	"embed"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"golang.org/x/image/font/opentype"
 	"image"
 	"image/color"
-	_ "image/png"
 	"log"
 	"math/rand"
 	"os"
@@ -25,6 +25,15 @@ const (
 	fontSize    = 15
 	bigFontSize = 100
 	dpi         = 72
+	nbPlayer    = 2
+)
+
+type GameState int
+
+const (
+	Init GameState = iota
+	AITurn
+	PlayerTurn
 )
 
 //go:embed images/*
@@ -35,13 +44,12 @@ var (
 	bigText     font.Face
 	boardImage  *ebiten.Image
 	symbolImage *ebiten.Image
-	textImage   = ebiten.NewImage(sWidth, sWidth)
 	gameImage   = ebiten.NewImage(sWidth, sWidth)
 )
 
 type Game struct {
 	playing   string
-	state     int
+	state     GameState
 	gameBoard [3][3]string
 	round     int
 	pointsO   int
@@ -52,11 +60,9 @@ type Game struct {
 
 func (g *Game) Update() error {
 	switch g.state {
-	case 0:
+	case Init:
 		g.Init()
-		break
-
-	case 1:
+	case AITurn:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
 			if mx/160 < 3 && mx >= 0 && my/160 < 3 && my >= 0 && g.gameBoard[mx/160][my/160] == "" {
@@ -73,12 +79,10 @@ func (g *Game) Update() error {
 				g.round++
 			}
 		}
-		break
-	case 2:
+	case PlayerTurn:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Load()
 		}
-		break
 	}
 	if inpututil.KeyPressDuration(ebiten.KeyR) == 60 {
 		g.Load()
@@ -96,10 +100,10 @@ func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
 		var colorText color.RGBA
 		colorChange := 255 - (255 / 60 * uint8(inpututil.KeyPressDuration(key)))
 		if key == ebiten.KeyEscape {
-			msgText = fmt.Sprintf("CLOSING...")
+			msgText = "CLOSING..."
 			colorText = color.RGBA{R: 255, G: colorChange, B: colorChange, A: 255}
 		} else if key == ebiten.KeyR {
-			msgText = fmt.Sprintf("RESETING...")
+			msgText = "RESETING..."
 			colorText = color.RGBA{R: colorChange, G: 255, B: 255, A: 255}
 		}
 		text.Draw(screen, msgText, normalText, sWidth/2, sHeight-30, colorText)
@@ -112,7 +116,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(gameImage, nil)
 	mx, my := ebiten.CursorPosition()
 
-	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.CurrentTPS(), ebiten.CurrentFPS())
+	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
 
 	keyChangeColor(ebiten.KeyEscape, screen)
@@ -144,16 +148,20 @@ func (g *Game) DrawSymbol(x, y int, sym string) {
 }
 
 func (g *Game) Init() {
+	symbols := symbolDrawer.Init()
 	imageBytes, err := imageFS.ReadFile("images/board.png")
 	if err != nil {
 		log.Fatal(err)
+		//TODO: On doit pas return ou throw une exception du coup ?
 	}
 	decoded, _, err := image.Decode(bytes.NewReader(imageBytes))
+	print(decoded)
 	if err != nil {
 		log.Fatal(err)
+		//TODO: On doit pas return ou throw une exception du coup ?
 	}
-	boardImage = ebiten.NewImageFromImage(decoded)
-	re := newRandom().Intn(2)
+	boardImage = symbols.Board
+	re := newRandom().Intn(nbPlayer)
 	if re == 0 {
 		g.playing = "O"
 		g.alter = 0
@@ -177,31 +185,31 @@ func (g *Game) Load() {
 		g.alter = 0
 	}
 	g.win = ""
-	g.state = 1
+	g.state = AITurn
 }
 
 func (g *Game) wins(winner string) {
 	if winner == "O" {
 		g.win = "O"
 		g.pointsO++
-		g.state = 2
+		g.state = PlayerTurn
 	} else if winner == "X" {
 		g.win = "X"
 		g.pointsX++
-		g.state = 2
+		g.state = PlayerTurn
 	} else if winner == "tie" {
 		g.win = "No one\n"
-		g.state = 2
+		g.state = PlayerTurn
 	}
 }
 
 func (g *Game) CheckWin() string {
-	for i, _ := range g.gameBoard {
+	for i := range g.gameBoard {
 		if g.gameBoard[i][0] == g.gameBoard[i][1] && g.gameBoard[i][1] == g.gameBoard[i][2] {
 			return g.gameBoard[i][0]
 		}
 	}
-	for i, _ := range g.gameBoard {
+	for i := range g.gameBoard {
 		if g.gameBoard[0][i] == g.gameBoard[1][i] && g.gameBoard[1][i] == g.gameBoard[2][i] {
 			return g.gameBoard[0][i]
 		}
@@ -253,6 +261,7 @@ func (g *Game) Layout(int, int) (int, int) {
 }
 
 func main() {
+
 	game := &Game{}
 	ebiten.SetWindowSize(sWidth, sHeight)
 	ebiten.SetWindowTitle("TicTacToe")
