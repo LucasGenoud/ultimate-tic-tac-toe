@@ -36,6 +36,15 @@ const (
 	PlayerTurn
 )
 
+type PlayerSymbol rune
+
+const (
+	PLAYER1 PlayerSymbol = 'O'
+	PLAYER2 PlayerSymbol = 'X'
+	EMPTY   PlayerSymbol = ' '
+	NONE    PlayerSymbol = 0
+)
+
 //go:embed images/*
 var imageFS embed.FS
 
@@ -48,13 +57,13 @@ var (
 )
 
 type Game struct {
-	playing   string
+	playing   PlayerSymbol
 	state     GameState
-	gameBoard [3][3]string
+	gameBoard [3][3]PlayerSymbol
 	round     int
 	pointsO   int
 	pointsX   int
-	win       string
+	win       PlayerSymbol
 	alter     int
 }
 
@@ -65,15 +74,15 @@ func (g *Game) Update() error {
 	case AITurn:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
-			if mx/160 < 3 && mx >= 0 && my/160 < 3 && my >= 0 && g.gameBoard[mx/160][my/160] == "" {
+			if mx/160 < 3 && mx >= 0 && my/160 < 3 && my >= 0 && g.gameBoard[mx/160][my/160] == EMPTY {
 				if g.round%2 == 0+g.alter {
-					g.DrawSymbol(mx/160, my/160, "O")
-					g.gameBoard[mx/160][my/160] = "O"
-					g.playing = "X"
+					g.DrawSymbol(mx/160, my/160, string(rune(PLAYER1)))
+					g.gameBoard[mx/160][my/160] = PLAYER1
+					g.playing = PLAYER2
 				} else {
-					g.DrawSymbol(mx/160, my/160, "X")
-					g.gameBoard[mx/160][my/160] = "X"
-					g.playing = "O"
+					g.DrawSymbol(mx/160, my/160, string(rune(PLAYER2)))
+					g.gameBoard[mx/160][my/160] = PLAYER2
+					g.playing = PLAYER1
 				}
 				g.wins(g.CheckWin())
 				g.round++
@@ -123,15 +132,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	keyChangeColor(ebiten.KeyR, screen)
 	msgOX := fmt.Sprintf("O: %v | X: %v", g.pointsO, g.pointsX)
 	text.Draw(screen, msgOX, normalText, sWidth/2, sHeight-5, color.White)
-	if g.win != "" {
-		msgWin := fmt.Sprintf("%v wins!", g.win)
+	if g.win != EMPTY {
+		msgWin := fmt.Sprintf("%v wins!", string(g.win))
 		text.Draw(screen, msgWin, bigText, 70, 200, color.RGBA{G: 50, B: 200, A: 255})
 	}
-	msg := fmt.Sprintf("%v", g.playing)
+	msg := string(g.playing)
 	text.Draw(screen, msg, normalText, mx, my, color.RGBA{G: 255, A: 255})
 }
 
 func (g *Game) DrawSymbol(x, y int, sym string) {
+	//TODO : sym may be replace by rune or playerSymbol one images would be generate
 	imageBytes, err := imageFS.ReadFile(fmt.Sprintf("images/%v.png", sym))
 	if err != nil {
 		log.Fatal(err)
@@ -163,10 +173,10 @@ func (g *Game) Init() {
 	boardImage = symbols.Board
 	re := newRandom().Intn(nbPlayer)
 	if re == 0 {
-		g.playing = "O"
+		g.playing = PLAYER1
 		g.alter = 0
 	} else {
-		g.playing = "X"
+		g.playing = PLAYER2
 		g.alter = 1
 	}
 	g.Load()
@@ -175,65 +185,65 @@ func (g *Game) Init() {
 
 func (g *Game) Load() {
 	gameImage.Clear()
-	g.gameBoard = [3][3]string{{"", "", ""}, {"", "", ""}, {"", "", ""}}
+	g.gameBoard = [3][3]PlayerSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}
 	g.round = 0
 	if g.alter == 0 {
-		g.playing = "X"
+		g.playing = PLAYER2
 		g.alter = 1
 	} else if g.alter == 1 {
-		g.playing = "O"
+		g.playing = PLAYER1
 		g.alter = 0
 	}
-	g.win = ""
+	g.win = EMPTY
 	g.state = AITurn
 }
 
-func (g *Game) wins(winner string) {
-	if winner == "O" {
-		g.win = "O"
+func (g *Game) wins(winner PlayerSymbol) {
+	if winner == PLAYER1 {
+		g.win = PLAYER1
 		g.pointsO++
 		g.state = PlayerTurn
-	} else if winner == "X" {
-		g.win = "X"
+	} else if winner == PLAYER2 {
+		g.win = PLAYER2
 		g.pointsX++
 		g.state = PlayerTurn
-	} else if winner == "tie" {
-		g.win = "No one\n"
+	} else if winner == NONE {
+		g.win = NONE
 		g.state = PlayerTurn
 	}
 }
 
-func (g *Game) CheckWin() string {
+func (g *Game) CheckWin() PlayerSymbol {
 
 	for i := 0; i < 3; i++ {
-		if g.winnerOnLine(i, 0, 0, 1) != "" {
+		if g.winnerOnLine(i, 0, 0, 1) != EMPTY {
 			return g.winnerOnLine(i, 0, 0, 1)
 		}
 	}
 	for i := 0; i < 3; i++ {
-		if g.winnerOnLine(0, i, 1, 0) != "" {
+		if g.winnerOnLine(0, i, 1, 0) != EMPTY {
 			return g.winnerOnLine(0, i, 1, 0)
 		}
 	}
-	if g.winnerOnLine(0, 0, 1, 1) != "" {
+	if g.winnerOnLine(0, 0, 1, 1) != EMPTY {
 		return g.winnerOnLine(0, 0, 1, 1)
 	}
-	if g.winnerOnLine(0, 2, 1, -1) != "" {
+	if g.winnerOnLine(0, 2, 1, -1) != EMPTY {
 		return g.winnerOnLine(0, 2, 1, -1)
 	}
 	if g.round == 8 {
-		return "tie"
+		return NONE
 	}
-	return ""
+	return EMPTY
 }
 
 // winnerOnLine checks if there is a winner on the given line
 // x, y: the starting point of the line
 // dx, dy: delta applied to x and y to get the next point on the line
-func (g *Game) winnerOnLine(x, y, dx, dy int) string {
+func (g *Game) winnerOnLine(x, y, dx, dy int) PlayerSymbol {
 	for i := 0; i < 3; i++ {
 		if g.gameBoard[x][y] != g.gameBoard[x+dx*i][y+dy*i] {
-			return ""
+			return EMPTY
 		}
 	}
 	return g.gameBoard[x][y]
