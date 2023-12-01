@@ -204,23 +204,39 @@ func (g *Game) wins(winner string) {
 }
 
 func (g *Game) CheckWin() string {
-	for i := range g.gameBoard {
-		if g.gameBoard[i][0] == g.gameBoard[i][1] && g.gameBoard[i][1] == g.gameBoard[i][2] {
-			return g.gameBoard[i][0]
+
+	for i := 0; i < 3; i++ {
+		if g.winnerOnLine(i, 0, 0, 1) != "" {
+			return g.winnerOnLine(i, 0, 0, 1)
 		}
 	}
-	for i := range g.gameBoard {
-		if g.gameBoard[0][i] == g.gameBoard[1][i] && g.gameBoard[1][i] == g.gameBoard[2][i] {
-			return g.gameBoard[0][i]
+	for i := 0; i < 3; i++ {
+		if g.winnerOnLine(0, i, 1, 0) != "" {
+			return g.winnerOnLine(0, i, 1, 0)
 		}
 	}
-	if (g.gameBoard[0][0] == g.gameBoard[1][1] && g.gameBoard[1][1] == g.gameBoard[2][2]) || (g.gameBoard[0][2] == g.gameBoard[1][1] && g.gameBoard[1][1] == g.gameBoard[2][0]) {
-		return g.gameBoard[1][1]
+	if g.winnerOnLine(0, 0, 1, 1) != "" {
+		return g.winnerOnLine(0, 0, 1, 1)
+	}
+	if g.winnerOnLine(0, 2, 1, -1) != "" {
+		return g.winnerOnLine(0, 2, 1, -1)
 	}
 	if g.round == 8 {
 		return "tie"
 	}
 	return ""
+}
+
+// winnerOnLine checks if there is a winner on the given line
+// x, y: the starting point of the line
+// dx, dy: delta applied to x and y to get the next point on the line
+func (g *Game) winnerOnLine(x, y, dx, dy int) string {
+	for i := 0; i < 3; i++ {
+		if g.gameBoard[x][y] != g.gameBoard[x+dx*i][y+dy*i] {
+			return ""
+		}
+	}
+	return g.gameBoard[x][y]
 }
 
 func (g *Game) ResetPoints() {
