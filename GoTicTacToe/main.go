@@ -1,9 +1,7 @@
 package main
 
 import (
-	"GoTicTacToe/src/symbolDrawer"
-	"bytes"
-	"embed"
+	"GoTicTacToe/src/gameGraphicsMaker"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
@@ -11,7 +9,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
-	"image"
 	"image/color"
 	"log"
 	"math/rand"
@@ -45,15 +42,13 @@ const (
 	NONE    PlayerSymbol = 0
 )
 
-//go:embed images/*
-var imageFS embed.FS
-
 var (
-	normalText  font.Face
-	bigText     font.Face
-	boardImage  *ebiten.Image
-	symbolImage *ebiten.Image
-	gameImage   = ebiten.NewImage(sWidth, sWidth)
+	normalText   font.Face
+	bigText      font.Face
+	boardImage   *ebiten.Image
+	symbolImage  *ebiten.Image
+	gameImage    = ebiten.NewImage(sWidth, sWidth)
+	gameGraphics = gameGraphicsMaker.Init()
 )
 
 type Game struct {
@@ -142,35 +137,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) DrawSymbol(x, y int, sym string) {
 	//TODO : sym may be replace by rune or playerSymbol one images would be generate
-	imageBytes, err := imageFS.ReadFile(fmt.Sprintf("images/%v.png", sym))
-	if err != nil {
-		log.Fatal(err)
+	if sym == "X" {
+		symbolImage = gameGraphics.Cross
 	}
-	decoded, _, err := image.Decode(bytes.NewReader(imageBytes))
-	if err != nil {
-		log.Fatal(err)
+	if sym == "O" {
+		symbolImage = gameGraphics.Circle
 	}
-	symbolImage = ebiten.NewImageFromImage(decoded)
+
+	xPos, yPos := gameGraphicsMaker.GetPositionOfSymbol(x, y)
 	opSymbol := &ebiten.DrawImageOptions{}
-	opSymbol.GeoM.Translate(float64((160*(x+1)-160)+7), float64((160*(y+1)-160)+7))
+	opSymbol.GeoM.Translate(xPos, yPos)
 
 	gameImage.DrawImage(symbolImage, opSymbol)
 }
 
 func (g *Game) Init() {
-	symbols := symbolDrawer.Init()
-	imageBytes, err := imageFS.ReadFile("images/board.png")
-	if err != nil {
-		log.Fatal(err)
-		//TODO: On doit pas return ou throw une exception du coup ?
-	}
-	decoded, _, err := image.Decode(bytes.NewReader(imageBytes))
-	print(decoded)
-	if err != nil {
-		log.Fatal(err)
-		//TODO: On doit pas return ou throw une exception du coup ?
-	}
-	boardImage = symbols.Board
+	boardImage = gameGraphics.Board
 	re := newRandom().Intn(nbPlayer)
 	if re == 0 {
 		g.playing = PLAYER1
