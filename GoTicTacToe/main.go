@@ -29,17 +29,19 @@ type GameState int
 
 const (
 	Init GameState = iota
-	AITurn
-	PlayerTurn
+	Playing
+	PlayAgain
 )
 
-type PlayerSymbol rune
+// GameSymbol determine the symbols contained in the game
+type GameSymbol rune
 
+// enum determining the symbols contained in the game
 const (
-	PLAYER1 PlayerSymbol = 'O'
-	PLAYER2 PlayerSymbol = 'X'
-	EMPTY   PlayerSymbol = ' '
-	NONE    PlayerSymbol = 0
+	PLAYER1 GameSymbol = 'O'
+	PLAYER2 GameSymbol = 'X'
+	EMPTY   GameSymbol = ' ' // for empty cell
+	NONE    GameSymbol = 0
 )
 
 var (
@@ -52,30 +54,30 @@ var (
 )
 
 type Game struct {
-	playing   PlayerSymbol
+	playing   GameSymbol
 	state     GameState
-	gameBoard [3][3]PlayerSymbol
+	gameBoard [3][3]GameSymbol
 	round     int
 	pointsO   int
 	pointsX   int
-	win       PlayerSymbol
+	win       GameSymbol
 	alter     int
 }
 
 func (g *Game) Update() error {
 	switch g.state {
 	case Init:
-		g.Init()
-	case AITurn:
+		g.init()
+	case Playing:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
 			if mx/160 < 3 && mx >= 0 && my/160 < 3 && my >= 0 && g.gameBoard[mx/160][my/160] == EMPTY {
 				if g.round%2 == 0+g.alter {
-					g.DrawSymbol(mx/160, my/160, string(rune(PLAYER1)))
+					g.DrawSymbol(mx/160, my/160, string(PLAYER1))
 					g.gameBoard[mx/160][my/160] = PLAYER1
 					g.playing = PLAYER2
 				} else {
-					g.DrawSymbol(mx/160, my/160, string(rune(PLAYER2)))
+					g.DrawSymbol(mx/160, my/160, string(PLAYER2))
 					g.gameBoard[mx/160][my/160] = PLAYER2
 					g.playing = PLAYER1
 				}
@@ -83,7 +85,7 @@ func (g *Game) Update() error {
 				g.round++
 			}
 		}
-	case PlayerTurn:
+	case PlayAgain:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Load()
 		}
@@ -151,92 +153,8 @@ func (g *Game) DrawSymbol(x, y int, sym string) {
 	gameImage.DrawImage(symbolImage, opSymbol)
 }
 
-func (g *Game) Init() {
-	boardImage = gameGraphics.Board
-	re := newRandom().Intn(nbPlayer)
-	if re == 0 {
-		g.playing = PLAYER1
-		g.alter = 0
-	} else {
-		g.playing = PLAYER2
-		g.alter = 1
-	}
-	g.Load()
-	g.ResetPoints()
-}
-
-func (g *Game) Load() {
-	gameImage.Clear()
-	g.gameBoard = [3][3]PlayerSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}
-	g.round = 0
-	if g.alter == 0 {
-		g.playing = PLAYER2
-		g.alter = 1
-	} else if g.alter == 1 {
-		g.playing = PLAYER1
-		g.alter = 0
-	}
-	g.win = EMPTY
-	g.state = AITurn
-}
-
-func (g *Game) wins(winner PlayerSymbol) {
-	if winner == PLAYER1 {
-		g.win = PLAYER1
-		g.pointsO++
-		g.state = PlayerTurn
-	} else if winner == PLAYER2 {
-		g.win = PLAYER2
-		g.pointsX++
-		g.state = PlayerTurn
-	} else if winner == NONE {
-		g.win = NONE
-		g.state = PlayerTurn
-	}
-}
-
-func (g *Game) CheckWin() PlayerSymbol {
-
-	for i := 0; i < 3; i++ {
-		if g.winnerOnLine(i, 0, 0, 1) != EMPTY {
-			return g.winnerOnLine(i, 0, 0, 1)
-		}
-	}
-	for i := 0; i < 3; i++ {
-		if g.winnerOnLine(0, i, 1, 0) != EMPTY {
-			return g.winnerOnLine(0, i, 1, 0)
-		}
-	}
-	if g.winnerOnLine(0, 0, 1, 1) != EMPTY {
-		return g.winnerOnLine(0, 0, 1, 1)
-	}
-	if g.winnerOnLine(0, 2, 1, -1) != EMPTY {
-		return g.winnerOnLine(0, 2, 1, -1)
-	}
-	if g.round == 8 {
-		return NONE
-	}
-	return EMPTY
-}
-
-// winnerOnLine checks if there is a winner on the given line
-// x, y: the starting point of the line
-// dx, dy: delta applied to x and y to get the next point on the line
-func (g *Game) winnerOnLine(x, y, dx, dy int) PlayerSymbol {
-	for i := 0; i < 3; i++ {
-		if g.gameBoard[x][y] != g.gameBoard[x+dx*i][y+dy*i] {
-			return EMPTY
-		}
-	}
-	return g.gameBoard[x][y]
-}
-
-func (g *Game) ResetPoints() {
-	g.pointsO = 0
-	g.pointsX = 0
-}
-
-func init() {
+func (g *Game) init() {
+	// init font
 	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
 	if err != nil {
 		log.Fatal(err)
@@ -257,6 +175,87 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// init game state
+	boardImage = gameGraphics.Board
+	re := newRandom().Intn(nbPlayer)
+	if re == 0 {
+		g.playing = PLAYER1
+		g.alter = 0
+	} else {
+		g.playing = PLAYER2
+		g.alter = 1
+	}
+	g.Load()
+	g.ResetPoints()
+}
+
+func (g *Game) Load() {
+	gameImage.Clear()
+	g.gameBoard = [3][3]GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}
+	g.round = 0
+	if g.alter == 0 {
+		g.playing = PLAYER2
+		g.alter = 1
+	} else if g.alter == 1 {
+		g.playing = PLAYER1
+		g.alter = 0
+	}
+	g.win = EMPTY
+	g.state = Playing
+}
+
+func (g *Game) wins(winner GameSymbol) {
+	if winner == PLAYER1 {
+		g.win = PLAYER1
+		g.pointsO++
+		g.state = PlayAgain
+	} else if winner == PLAYER2 {
+		g.win = PLAYER2
+		g.pointsX++
+		g.state = PlayAgain
+	} else if g.round == 8 {
+		g.win = NONE
+		g.state = PlayAgain
+	}
+}
+
+func (g *Game) CheckWin() GameSymbol {
+
+	for i := 0; i < 3; i++ {
+		if g.winnerOnLine(i, 0, 0, 1) != EMPTY {
+			return g.winnerOnLine(i, 0, 0, 1)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		if g.winnerOnLine(0, i, 1, 0) != EMPTY {
+			return g.winnerOnLine(0, i, 1, 0)
+		}
+	}
+	if g.winnerOnLine(0, 0, 1, 1) != EMPTY {
+		return g.winnerOnLine(0, 0, 1, 1)
+	}
+	if g.winnerOnLine(0, 2, 1, -1) != EMPTY {
+		return g.winnerOnLine(0, 2, 1, -1)
+	}
+	return NONE
+}
+
+// winnerOnLine checks if there is a winner on the given line
+// x, y: the starting point of the line
+// dx, dy: delta applied to x and y to get the next point on the line
+func (g *Game) winnerOnLine(x, y, dx, dy int) GameSymbol {
+	for i := 0; i < 3; i++ {
+		if g.gameBoard[x][y] != g.gameBoard[x+dx*i][y+dy*i] {
+			return EMPTY
+		}
+	}
+	return g.gameBoard[x][y]
+}
+
+func (g *Game) ResetPoints() {
+	g.pointsO = 0
+	g.pointsX = 0
 }
 
 func newRandom() *rand.Rand {
@@ -269,7 +268,6 @@ func (g *Game) Layout(int, int) (int, int) {
 }
 
 func main() {
-
 	game := &Game{}
 	ebiten.SetWindowSize(sWidth, sHeight)
 	ebiten.SetWindowTitle("TicTacToe")
