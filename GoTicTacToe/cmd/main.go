@@ -1,7 +1,7 @@
 package main
 
 import (
-	"GoTicTacToe/src/gameGraphicsMaker"
+	"GoTicTacToe/lib/graphics"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
@@ -50,7 +50,7 @@ var (
 	boardImage   *ebiten.Image
 	symbolImage  *ebiten.Image
 	gameImage    = ebiten.NewImage(sWidth, sWidth)
-	gameGraphics = gameGraphicsMaker.Init()
+	gameGraphics = graphics.Init()
 )
 
 type Game struct {
@@ -138,7 +138,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) DrawSymbol(x, y int, sym string) {
-	//TODO : sym may be replace by rune or playerSymbol one images would be generate
 	if sym == "X" {
 		symbolImage = gameGraphics.Cross
 	}
@@ -146,7 +145,7 @@ func (g *Game) DrawSymbol(x, y int, sym string) {
 		symbolImage = gameGraphics.Circle
 	}
 
-	xPos, yPos := gameGraphicsMaker.GetPositionOfSymbol(x, y)
+	xPos, yPos := graphics.GetPositionOfSymbol(x, y)
 	opSymbol := &ebiten.DrawImageOptions{}
 	opSymbol.GeoM.Translate(xPos, yPos)
 

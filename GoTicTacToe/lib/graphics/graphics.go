@@ -1,4 +1,4 @@
-package gameGraphicsMaker
+package graphics
 
 import (
 	"github.com/fogleman/gg"
@@ -7,9 +7,10 @@ import (
 
 const (
 	boardSize       = 480
-	symbolSize      = boardSize / 3
+	numberOfRows    = 3
+	symbolSize      = boardSize / numberOfRows
 	symbolLineWidth = 10
-	boardLineWidth  = 5
+	boardLineWidth  = 10
 )
 
 type GameGraphics struct {
@@ -19,22 +20,25 @@ type GameGraphics struct {
 }
 
 func Init() GameGraphics {
-	symbols := GameGraphics{}
-	symbols.Circle = drawCircle()
-	symbols.Cross = drawCross()
-	symbols.Board = DrawBoard()
+	gameGraphics := GameGraphics{}
+	gameGraphics.Circle = drawCircle()
+	gameGraphics.Cross = drawCross()
+	gameGraphics.Board = DrawBoard()
 
-	return symbols
+	return gameGraphics
 }
 
 func DrawBoard() *ebiten.Image {
 	context := gg.NewContext(boardSize, boardSize)
-	rectangleBaseSize := float64(boardSize / 3)
+	boardCaseSize := float64(boardSize / numberOfRows)
 	context.SetRGBA(1, 1, 1, 1)
-	context.DrawRectangle(rectangleBaseSize-boardLineWidth, 0, boardLineWidth, boardSize)
-	context.DrawRectangle(rectangleBaseSize*2-boardLineWidth, 0, boardLineWidth, boardSize)
-	context.DrawRectangle(0, rectangleBaseSize-boardLineWidth, boardSize, boardLineWidth)
-	context.DrawRectangle(0, rectangleBaseSize*2-boardLineWidth, boardSize, boardLineWidth)
+
+	for i := 1; i < numberOfRows; i++ {
+		context.DrawRectangle(boardCaseSize*float64(i)-boardLineWidth/2, 0, boardLineWidth, boardSize)
+		context.DrawRectangle(0, boardCaseSize*float64(i)-boardLineWidth/2, boardSize, boardLineWidth)
+
+	}
+
 	context.Fill()
 	return ebiten.NewImageFromImage(context.Image())
 }
@@ -56,12 +60,15 @@ func drawCross() *ebiten.Image {
 
 	context := gg.NewContext(symbolSize, symbolSize)
 	context.SetRGBA(1, 1, 1, 1)
+	context.RotateAbout(gg.Radians(45), symbolSize/2, symbolSize/2)
+
 	context.DrawRectangle(0, symbolSize/2-symbolLineWidth/2, symbolSize, symbolLineWidth)
 	context.DrawRectangle(symbolSize/2-symbolLineWidth/2, 0, symbolLineWidth, symbolSize)
 	context.Fill()
 
 	return ebiten.NewImageFromImage(context.Image())
 }
+
 func GetPositionOfSymbol(x, y int) (float64, float64) {
 	return float64(symbolSize*x - boardLineWidth*x/2), float64(symbolSize * y)
 }
