@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	sWidth      = 480
-	sHeight     = 600
+	sWidth      = 1000
+	sHeight     = 1000
 	fontSize    = 15
 	bigFontSize = 100
 	dpi         = 72
@@ -69,6 +69,7 @@ func (g *Game) Update() error {
 	case Init:
 		g.init()
 	case Playing:
+		// TODO: handle multiple boards
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
 			if mx/160 < 3 && mx >= 0 && my/160 < 3 && my >= 0 && g.gameBoard[mx/160][my/160] == EMPTY {
@@ -118,7 +119,19 @@ func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 
-	screen.DrawImage(boardImage, nil)
+	gameBoardImageOptions := &ebiten.DrawImageOptions{}
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			gameBoardImageOptions.GeoM.Reset()
+			gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+			screen.DrawImage(boardImage, gameBoardImageOptions)
+
+		}
+	}
+	gameBoardImageOptions.GeoM.Reset()
+	gameBoardImageOptions.GeoM.Scale(3.25, 3.2)
+
+	screen.DrawImage(boardImage, gameBoardImageOptions)
 	screen.DrawImage(gameImage, nil)
 	mx, my := ebiten.CursorPosition()
 

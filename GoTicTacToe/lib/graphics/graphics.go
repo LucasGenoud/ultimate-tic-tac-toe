@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	boardSize       = 480
+	boardSize       = 300
 	numberOfRows    = 3
 	symbolSize      = boardSize / numberOfRows
 	symbolLineWidth = 10
