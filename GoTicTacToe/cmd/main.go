@@ -18,7 +18,7 @@ import (
 
 const (
 	sWidth      = 800
-	sHeight     = 800
+	sHeight     = 900
 	fontSize    = 15
 	bigFontSize = 100
 	dpi         = 72
@@ -86,8 +86,23 @@ func (g *Game) Update() error {
 				}
 				g.wins(g.CheckWin())
 				g.round++
+
 			}
+
+			// tests
+			miniTicTacToeSize := sWidth / 3
+			ticTactoeCellSize := miniTicTacToeSize / 3
+			rowIndex := my / miniTicTacToeSize
+			colIndex := mx / miniTicTacToeSize
+			// Now that we have the row and column index we can "generilize" the correct position for any miniBoard
+			my_ := my - rowIndex*miniTicTacToeSize
+			mx_ := mx - colIndex*miniTicTacToeSize
+			rowIndex_ := my_ / ticTactoeCellSize
+			colIndex_ := mx_ / ticTactoeCellSize
+			result := fmt.Sprintf("(%d, %d) -> (%d, %d)", rowIndex, colIndex, rowIndex_, colIndex_)
+			fmt.Println(result)
 		}
+
 	case PlayAgain:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Load()

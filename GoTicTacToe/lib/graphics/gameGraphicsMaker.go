@@ -15,11 +15,12 @@ func (ggm *gameGraphicMaker) drawRectangle(x, y, width, height int) {
 func (ggm *gameGraphicMaker) fill() {
 	ggm.context.Fill()
 }
-func (ggm *gameGraphicMaker) setRGBA(r, g, b, a float64) {
-	ggm.context.SetRGBA(r, g, b, a)
+func (ggm *gameGraphicMaker) setRGBA(r, g, b, a int) {
+	ggm.context.SetRGBA255(r, g, b, a)
 }
 func (ggm *gameGraphicMaker) drawCircle(x, y, radius int) {
 	ggm.context.DrawCircle(float64(x), float64(y), float64(radius))
+
 }
 func (ggm *gameGraphicMaker) stroke() {
 	ggm.context.Stroke()

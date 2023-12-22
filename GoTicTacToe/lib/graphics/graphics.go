@@ -7,7 +7,7 @@ import (
 
 const (
 	numberOfRows       = 3
-	symbolLineWidth    = 10
+	symbolLineWidth    = 7
 	mainBoardLineWidth = 10
 	miniBoardLineWidth = 5
 	miniBoardPadding   = 10
@@ -28,7 +28,7 @@ type GameGraphics struct {
 
 func Init(boardWidth int) GameGraphics {
 	boardSize = boardWidth
-	miniBoardSize = boardSize/numberOfRows - miniBoardPadding*2 - miniBoardLineWidth - mainBoardLineWidth
+	miniBoardSize = boardSize/numberOfRows - mainBoardLineWidth*2
 	symbolSize = miniBoardSize / numberOfRows
 	gameGraphics := GameGraphics{}
 	gameGraphics.Circle = drawCircle()
@@ -40,7 +40,7 @@ func Init(boardWidth int) GameGraphics {
 
 func DrawMainBoard() *ebiten.Image {
 	ggm := gameGraphicMaker{gg.NewContext(boardSize, boardSize)}
-	ggm.setRGBA(1, 1, 1, 1)
+	ggm.setRGBA(255, 255, 255, 255)
 	boardCaseSize := boardSize / numberOfRows
 	for i := 1; i < numberOfRows; i++ {
 		ggm.drawRectangle(boardCaseSize*i-mainBoardLineWidth/2, 0, mainBoardLineWidth, boardSize)
@@ -52,13 +52,15 @@ func DrawMainBoard() *ebiten.Image {
 
 func DrawMiniBoard() *ebiten.Image {
 	ggm := gameGraphicMaker{gg.NewContext(boardSize, boardSize)}
-	ggm.setRGBA(1, 1, 1, 0.3)
-	boardCaseSize := boardSize / (numberOfRows * numberOfRows)
+	ggm.setRGBA(255, 255, 255, 100)
+	boardCaseSize := miniBoardSize / numberOfRows
+	boardCaseSize = miniBoardSize / numberOfRows
 	for i := 1; i < numberOfRows; i++ {
-		ggm.drawRectangle(boardCaseSize*i-miniBoardLineWidth/2+miniBoardPadding, miniBoardPadding, miniBoardLineWidth, miniBoardSize-miniBoardPadding*2)
-		ggm.drawRectangle(miniBoardPadding, boardCaseSize*i-miniBoardLineWidth/2+miniBoardPadding, miniBoardSize-miniBoardPadding*2, miniBoardLineWidth)
+		ggm.drawRectangle(boardCaseSize*i+miniBoardPadding-miniBoardLineWidth/2, miniBoardPadding, miniBoardLineWidth, miniBoardSize)
+		ggm.drawRectangle(miniBoardPadding, boardCaseSize*i+miniBoardPadding-miniBoardLineWidth/2, miniBoardSize, miniBoardLineWidth)
 	}
 	ggm.fill()
+
 	return ggm.getImage()
 }
 
@@ -66,7 +68,7 @@ func drawCircle() *ebiten.Image {
 
 	var radius = symbolSize/2 - miniBoardLineWidth*2
 	ggm := gameGraphicMaker{gg.NewContext(symbolSize, symbolSize)}
-	ggm.setRGBA(1, 1, 1, 1)
+	ggm.setRGBA(233, 73, 63, 255)
 	ggm.setLineWidth(symbolLineWidth)
 	ggm.drawCircle(symbolSize/2, symbolSize/2, radius)
 	ggm.stroke()
@@ -76,8 +78,7 @@ func drawCircle() *ebiten.Image {
 
 func drawCross() *ebiten.Image {
 	ggm := gameGraphicMaker{gg.NewContext(symbolSize, symbolSize)}
-	ggm.setRGBA(1, 1, 1, 1)
-	ggm.rotateAbout(45, symbolSize/2, symbolSize/2)
+	ggm.setRGBA(69, 144, 240, 255)
 	ggm.rotateAbout(45, symbolSize/2, symbolSize/2)
 	ggm.drawRectangle(symbolSize/2-symbolLineWidth/2, 0, symbolLineWidth, symbolSize)
 	ggm.drawRectangle(0, symbolSize/2-symbolLineWidth/2, symbolSize, symbolLineWidth)
@@ -87,5 +88,5 @@ func drawCross() *ebiten.Image {
 
 func GetPositionOfSymbol(x, y int) (float64, float64) {
 	// TODO: probably need to add some padding and account for the offset depending on in which mini board the symbol is
-	return float64(symbolSize*x-miniBoardLineWidth*x/2) + miniBoardPadding, float64(symbolSize*y) + miniBoardPadding
+	return float64(symbolSize*x) + miniBoardPadding, float64(symbolSize*y) + miniBoardPadding
 }
