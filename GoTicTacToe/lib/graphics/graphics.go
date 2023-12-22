@@ -6,69 +6,86 @@ import (
 )
 
 const (
-	boardSize       = 300
-	numberOfRows    = 3
-	symbolSize      = boardSize / numberOfRows
-	symbolLineWidth = 10
-	boardLineWidth  = 10
+	numberOfRows       = 3
+	symbolLineWidth    = 10
+	mainBoardLineWidth = 10
+	miniBoardLineWidth = 5
+	miniBoardPadding   = 10
+)
+
+var (
+	boardSize     = 300
+	miniBoardSize = boardSize / numberOfRows
+	symbolSize    = miniBoardSize / numberOfRows
 )
 
 type GameGraphics struct {
-	Board  *ebiten.Image
-	Circle *ebiten.Image
-	Cross  *ebiten.Image
+	MainBoard *ebiten.Image
+	MiniBoard *ebiten.Image
+	Circle    *ebiten.Image
+	Cross     *ebiten.Image
 }
 
-func Init() GameGraphics {
+func Init(boardWidth int) GameGraphics {
+	boardSize = boardWidth
+	miniBoardSize = boardSize/numberOfRows - miniBoardPadding*2 - miniBoardLineWidth - mainBoardLineWidth
+	symbolSize = miniBoardSize / numberOfRows
 	gameGraphics := GameGraphics{}
 	gameGraphics.Circle = drawCircle()
 	gameGraphics.Cross = drawCross()
-	gameGraphics.Board = DrawBoard()
-
+	gameGraphics.MainBoard = DrawMainBoard()
+	gameGraphics.MiniBoard = DrawMiniBoard()
 	return gameGraphics
 }
 
-func DrawBoard() *ebiten.Image {
-	context := gg.NewContext(boardSize, boardSize)
-	boardCaseSize := float64(boardSize / numberOfRows)
-	context.SetRGBA(1, 1, 1, 1)
-
+func DrawMainBoard() *ebiten.Image {
+	ggm := gameGraphicMaker{gg.NewContext(boardSize, boardSize)}
+	ggm.setRGBA(1, 1, 1, 1)
+	boardCaseSize := boardSize / numberOfRows
 	for i := 1; i < numberOfRows; i++ {
-		context.DrawRectangle(boardCaseSize*float64(i)-boardLineWidth/2, 0, boardLineWidth, boardSize)
-		context.DrawRectangle(0, boardCaseSize*float64(i)-boardLineWidth/2, boardSize, boardLineWidth)
-
+		ggm.drawRectangle(boardCaseSize*i-mainBoardLineWidth/2, 0, mainBoardLineWidth, boardSize)
+		ggm.drawRectangle(0, boardCaseSize*i-mainBoardLineWidth/2, boardSize, mainBoardLineWidth)
 	}
+	ggm.fill()
+	return ggm.getImage()
+}
 
-	context.Fill()
-	return ebiten.NewImageFromImage(context.Image())
+func DrawMiniBoard() *ebiten.Image {
+	ggm := gameGraphicMaker{gg.NewContext(boardSize, boardSize)}
+	ggm.setRGBA(1, 1, 1, 0.3)
+	boardCaseSize := boardSize / (numberOfRows * numberOfRows)
+	for i := 1; i < numberOfRows; i++ {
+		ggm.drawRectangle(boardCaseSize*i-miniBoardLineWidth/2+miniBoardPadding, miniBoardPadding, miniBoardLineWidth, miniBoardSize-miniBoardPadding*2)
+		ggm.drawRectangle(miniBoardPadding, boardCaseSize*i-miniBoardLineWidth/2+miniBoardPadding, miniBoardSize-miniBoardPadding*2, miniBoardLineWidth)
+	}
+	ggm.fill()
+	return ggm.getImage()
 }
 
 func drawCircle() *ebiten.Image {
-	const radius = symbolSize/2 - boardLineWidth*2
 
-	context := gg.NewContext(symbolSize, symbolSize)
-	context.SetRGBA(1, 1, 1, 1)
-	context.SetLineWidth(symbolLineWidth)
+	var radius = symbolSize/2 - miniBoardLineWidth*2
+	ggm := gameGraphicMaker{gg.NewContext(symbolSize, symbolSize)}
+	ggm.setRGBA(1, 1, 1, 1)
+	ggm.setLineWidth(symbolLineWidth)
+	ggm.drawCircle(symbolSize/2, symbolSize/2, radius)
+	ggm.stroke()
 
-	context.DrawCircle(symbolSize/2, symbolSize/2, radius)
-	context.Stroke()
-
-	return ebiten.NewImageFromImage(context.Image())
+	return ggm.getImage()
 }
 
 func drawCross() *ebiten.Image {
-
-	context := gg.NewContext(symbolSize, symbolSize)
-	context.SetRGBA(1, 1, 1, 1)
-	context.RotateAbout(gg.Radians(45), symbolSize/2, symbolSize/2)
-
-	context.DrawRectangle(0, symbolSize/2-symbolLineWidth/2, symbolSize, symbolLineWidth)
-	context.DrawRectangle(symbolSize/2-symbolLineWidth/2, 0, symbolLineWidth, symbolSize)
-	context.Fill()
-
-	return ebiten.NewImageFromImage(context.Image())
+	ggm := gameGraphicMaker{gg.NewContext(symbolSize, symbolSize)}
+	ggm.setRGBA(1, 1, 1, 1)
+	ggm.rotateAbout(45, symbolSize/2, symbolSize/2)
+	ggm.rotateAbout(45, symbolSize/2, symbolSize/2)
+	ggm.drawRectangle(symbolSize/2-symbolLineWidth/2, 0, symbolLineWidth, symbolSize)
+	ggm.drawRectangle(0, symbolSize/2-symbolLineWidth/2, symbolSize, symbolLineWidth)
+	ggm.fill()
+	return ggm.getImage()
 }
 
 func GetPositionOfSymbol(x, y int) (float64, float64) {
-	return float64(symbolSize*x - boardLineWidth*x/2), float64(symbolSize * y)
+	// TODO: probably need to add some padding and account for the offset depending on in which mini board the symbol is
+	return float64(symbolSize*x-miniBoardLineWidth*x/2) + miniBoardPadding, float64(symbolSize*y) + miniBoardPadding
 }

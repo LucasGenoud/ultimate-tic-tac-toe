@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	sWidth      = 1000
-	sHeight     = 1000
+	sWidth      = 800
+	sHeight     = 800
 	fontSize    = 15
 	bigFontSize = 100
 	dpi         = 72
@@ -50,9 +50,11 @@ var (
 	boardImage   *ebiten.Image
 	symbolImage  *ebiten.Image
 	gameImage    = ebiten.NewImage(sWidth, sWidth)
-	gameGraphics = graphics.Init()
+	gameGraphics = graphics.Init(sWidth)
 )
 
+type miniGame struct {
+}
 type Game struct {
 	playing   GameSymbol
 	state     GameState
@@ -124,14 +126,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		for j := 0; j < 3; j++ {
 			gameBoardImageOptions.GeoM.Reset()
 			gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
-			screen.DrawImage(boardImage, gameBoardImageOptions)
+			screen.DrawImage(gameGraphics.MiniBoard, gameBoardImageOptions)
 
 		}
 	}
-	gameBoardImageOptions.GeoM.Reset()
-	gameBoardImageOptions.GeoM.Scale(3.25, 3.2)
-
-	screen.DrawImage(boardImage, gameBoardImageOptions)
+	screen.DrawImage(gameGraphics.MainBoard, nil)
 	screen.DrawImage(gameImage, nil)
 	mx, my := ebiten.CursorPosition()
 
@@ -189,7 +188,7 @@ func (g *Game) init() {
 	}
 
 	// init game state
-	boardImage = gameGraphics.Board
+	boardImage = gameGraphics.MainBoard
 	re := newRandom().Intn(nbPlayer)
 	if re == 0 {
 		g.playing = PLAYER1
