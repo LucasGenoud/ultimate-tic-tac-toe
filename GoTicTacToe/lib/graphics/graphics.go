@@ -26,6 +26,13 @@ type GameGraphics struct {
 	Cross     *ebiten.Image
 }
 
+type BoardCoord struct {
+	MainBoardRow int
+	MainBoardCol int
+	MiniBoardRow int
+	MiniBoardCol int
+}
+
 func Init(boardWidth int) GameGraphics {
 	boardSize = boardWidth
 	miniBoardSize = boardSize/numberOfRows - mainBoardLineWidth*2
@@ -86,7 +93,11 @@ func drawCross() *ebiten.Image {
 	return ggm.getImage()
 }
 
-func GetPositionOfSymbol(x, y int) (float64, float64) {
+func GetPositionOfSymbol(boardCoord BoardCoord) (float64, float64) {
+	x := symbolSize*boardCoord.MiniBoardRow + miniBoardPadding
+	y := symbolSize*boardCoord.MiniBoardCol + miniBoardPadding
+	x += boardCoord.MainBoardRow * (miniBoardSize + mainBoardLineWidth + miniBoardPadding)
+	y += boardCoord.MainBoardCol * (miniBoardSize + mainBoardLineWidth + miniBoardPadding)
 	// TODO: probably need to add some padding and account for the offset depending on in which mini board the symbol is
-	return float64(symbolSize*x) + miniBoardPadding, float64(symbolSize*y) + miniBoardPadding
+	return float64(x), float64(y)
 }

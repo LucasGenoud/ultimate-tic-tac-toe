@@ -53,8 +53,6 @@ var (
 	gameGraphics = graphics.Init(sWidth)
 )
 
-type miniGame struct {
-}
 type Game struct {
 	playing   GameSymbol
 	state     GameState
@@ -72,16 +70,35 @@ func (g *Game) Update() error {
 		g.init()
 	case Playing:
 		// TODO: handle multiple boards
+
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
-			if mx/160 < 3 && mx >= 0 && my/160 < 3 && my >= 0 && g.gameBoard[mx/160][my/160] == EMPTY {
+			miniTicTacToeSize := sWidth / 3
+			ticTacToeCellSize := miniTicTacToeSize / 3
+			rowIndex := mx / miniTicTacToeSize
+			colIndex := my / miniTicTacToeSize
+
+			// Now that we have the row and column index we can "generilize" the correct position for any miniBoard
+			my_ := my - colIndex*miniTicTacToeSize
+			mx_ := mx - rowIndex*miniTicTacToeSize
+			rowIndex_ := mx_ / ticTacToeCellSize
+			colIndex_ := my_ / ticTacToeCellSize
+			result := fmt.Sprintf("(%d, %d) -> (%d, %d)", rowIndex, colIndex, rowIndex_, colIndex_)
+			fmt.Println(result)
+
+			if g.gameBoard[rowIndex_][colIndex_] == EMPTY {
+				boardCoordinates := graphics.BoardCoord{}
+				boardCoordinates.MainBoardRow = rowIndex
+				boardCoordinates.MainBoardCol = colIndex
+				boardCoordinates.MiniBoardRow = rowIndex_
+				boardCoordinates.MiniBoardCol = colIndex_
 				if g.round%2 == 0+g.alter {
-					g.DrawSymbol(mx/160, my/160, string(PLAYER1))
-					g.gameBoard[mx/160][my/160] = PLAYER1
+					g.DrawSymbol(boardCoordinates, string(PLAYER1))
+					g.gameBoard[rowIndex_][colIndex_] = PLAYER1
 					g.playing = PLAYER2
 				} else {
-					g.DrawSymbol(mx/160, my/160, string(PLAYER2))
-					g.gameBoard[mx/160][my/160] = PLAYER2
+					g.DrawSymbol(boardCoordinates, string(PLAYER2))
+					g.gameBoard[rowIndex_][colIndex_] = PLAYER2
 					g.playing = PLAYER1
 				}
 				g.wins(g.CheckWin())
@@ -89,18 +106,6 @@ func (g *Game) Update() error {
 
 			}
 
-			// tests
-			miniTicTacToeSize := sWidth / 3
-			ticTactoeCellSize := miniTicTacToeSize / 3
-			rowIndex := my / miniTicTacToeSize
-			colIndex := mx / miniTicTacToeSize
-			// Now that we have the row and column index we can "generilize" the correct position for any miniBoard
-			my_ := my - rowIndex*miniTicTacToeSize
-			mx_ := mx - colIndex*miniTicTacToeSize
-			rowIndex_ := my_ / ticTactoeCellSize
-			colIndex_ := mx_ / ticTactoeCellSize
-			result := fmt.Sprintf("(%d, %d) -> (%d, %d)", rowIndex, colIndex, rowIndex_, colIndex_)
-			fmt.Println(result)
 		}
 
 	case PlayAgain:
@@ -164,7 +169,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(screen, msg, normalText, mx, my, color.RGBA{G: 255, A: 255})
 }
 
-func (g *Game) DrawSymbol(x, y int, sym string) {
+func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, sym string) {
 	if sym == "X" {
 		symbolImage = gameGraphics.Cross
 	}
@@ -172,7 +177,7 @@ func (g *Game) DrawSymbol(x, y int, sym string) {
 		symbolImage = gameGraphics.Circle
 	}
 
-	xPos, yPos := graphics.GetPositionOfSymbol(x, y)
+	xPos, yPos := graphics.GetPositionOfSymbol(boardCoord)
 	opSymbol := &ebiten.DrawImageOptions{}
 	opSymbol.GeoM.Translate(xPos, yPos)
 
