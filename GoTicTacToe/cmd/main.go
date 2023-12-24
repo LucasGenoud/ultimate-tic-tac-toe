@@ -2,6 +2,8 @@ package main
 
 import (
 	"GoTicTacToe/lib/graphics"
+	"GoTicTacToe/lib/miniBoard"
+	"GoTicTacToe/lib/models"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
@@ -33,15 +35,12 @@ const (
 	PlayAgain
 )
 
-// GameSymbol determine the symbols contained in the game
-type GameSymbol rune
-
 // enum determining the symbols contained in the game
 const (
-	PLAYER1 GameSymbol = 'O'
-	PLAYER2 GameSymbol = 'X'
-	EMPTY   GameSymbol = ' ' // for empty cell
-	NONE    GameSymbol = 0
+	PLAYER1 models.GameSymbol = 'O'
+	PLAYER2 models.GameSymbol = 'X'
+	EMPTY   models.GameSymbol = ' ' // for empty cell
+	NONE    models.GameSymbol = 0
 )
 
 var (
@@ -54,18 +53,14 @@ var (
 )
 
 type Game struct {
-	playing   GameSymbol
+	playing   models.GameSymbol
 	state     GameState
-	gameBoard [3][3]MiniBoard
+	gameBoard [3][3]miniBoard.MiniBoard
 	round     int
 	pointsO   int
 	pointsX   int
-	win       GameSymbol
-	alter     int
-}
-type MiniBoard struct {
-	Board  [3][3]GameSymbol
-	winner GameSymbol
+	win       models.GameSymbol
+	lastPlay  graphics.BoardCoord
 }
 
 func (g *Game) Update() error {
@@ -73,34 +68,24 @@ func (g *Game) Update() error {
 	case Init:
 		g.init()
 	case Playing:
-		// TODO: handle multiple boards
 
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
-			miniTicTacToeSize := sWidth / 3
-			ticTacToeCellSize := miniTicTacToeSize / 3
-			rowIndex := mx / miniTicTacToeSize
-			colIndex := my / miniTicTacToeSize
+			if mx > sWidth || my > sWidth {
+				return nil
+			}
+			boardCoordinates := g.getMiniBoardCoordinates(mx, my)
 
-			my_ := my - colIndex*miniTicTacToeSize
-			mx_ := mx - rowIndex*miniTicTacToeSize
-			rowIndex_ := mx_ / ticTacToeCellSize
-			colIndex_ := my_ / ticTacToeCellSize
-			result := fmt.Sprintf("(%d, %d) -> (%d, %d)", rowIndex, colIndex, rowIndex_, colIndex_)
-			fmt.Println(result)
-			if g.gameBoard[rowIndex][colIndex].Board[rowIndex_][colIndex_] == EMPTY {
-				boardCoordinates := graphics.BoardCoord{}
-				boardCoordinates.MainBoardRow = rowIndex
-				boardCoordinates.MainBoardCol = colIndex
-				boardCoordinates.MiniBoardRow = rowIndex_
-				boardCoordinates.MiniBoardCol = colIndex_
-				if g.round%2 == 0+g.alter {
-					g.DrawSymbol(boardCoordinates, string(PLAYER1))
-					g.gameBoard[rowIndex][colIndex].Board[rowIndex_][colIndex_] = PLAYER1
+			if !g.isValidPlay(boardCoordinates.MainBoardRow, boardCoordinates.MainBoardCol) {
+				return nil
+			}
+			if g.getValueOfCoordinates(boardCoordinates) == EMPTY {
+				g.lastPlay = boardCoordinates
+				if g.playing == PLAYER1 {
+					g.setValueOfCoordinates(boardCoordinates, PLAYER1)
 					g.playing = PLAYER2
 				} else {
-					g.DrawSymbol(boardCoordinates, string(PLAYER2))
-					g.gameBoard[rowIndex][colIndex].Board[rowIndex_][colIndex_] = PLAYER2
+					g.setValueOfCoordinates(boardCoordinates, PLAYER2)
 					g.playing = PLAYER1
 				}
 				g.wins(g.CheckWin())
@@ -124,7 +109,24 @@ func (g *Game) Update() error {
 	}
 	return nil
 }
+func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
+	return g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol]
+}
+func (g *Game) setValueOfCoordinates(coordinates graphics.BoardCoord, value models.GameSymbol) {
+	g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol] = value
+}
+func (g *Game) getMiniBoardCoordinates(mouseX, mouseY int) graphics.BoardCoord {
+	miniTicTacToeSize := sWidth / 3
+	ticTacToeCellSize := miniTicTacToeSize / 3
+	mainRow := mouseX / miniTicTacToeSize
+	mainCol := mouseY / miniTicTacToeSize
+	normalizedX := mouseX - mainRow*miniTicTacToeSize
+	normalizedY := mouseY - mainCol*miniTicTacToeSize
+	miniRow := normalizedX / ticTacToeCellSize
+	miniCol := normalizedY / ticTacToeCellSize
+	return graphics.BoardCoord{MainBoardRow: mainRow, MainBoardCol: mainCol, MiniBoardRow: miniRow, MiniBoardCol: miniCol}
 
+}
 func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
 	if inpututil.KeyPressDuration(key) > 1 {
 		var msgText string
@@ -142,28 +144,66 @@ func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-
-	gameBoardImageOptions := &ebiten.DrawImageOptions{}
+	gameImage.Clear()
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			gameBoardImageOptions.GeoM.Reset()
-			gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
-			screen.DrawImage(gameGraphics.MiniBoard, gameBoardImageOptions)
-			if g.gameBoard[i][j].winner != EMPTY {
-				gameBoardImageOptions.GeoM.Reset()
-				gameBoardImageOptions.GeoM.Scale(3, 3)
-				gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
-				if g.gameBoard[i][j].winner == PLAYER1 {
-					screen.DrawImage(gameGraphics.Circle, gameBoardImageOptions)
-				} else {
-					screen.DrawImage(gameGraphics.Cross, gameBoardImageOptions)
-				}
+			if g.gameBoard[i][j].Winner == EMPTY {
+				g.drawMiniBoard(i, j, screen)
+			} else {
+				g.drawMiniBoardWinner(i, j, screen)
 			}
 		}
 	}
-	screen.DrawImage(gameGraphics.MainBoard, nil)
+	gameImage.DrawImage(gameGraphics.MainBoard, nil)
 	screen.DrawImage(gameImage, nil)
+
+	g.displayInformation(screen)
+}
+func (g *Game) drawMiniBoardWinner(i, j int, screen *ebiten.Image) {
+	gameBoardImageOptions := &ebiten.DrawImageOptions{}
+
+	gameBoardImageOptions.GeoM.Reset()
+	gameBoardImageOptions.GeoM.Scale(3, 3)
+	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+	if g.gameBoard[i][j].Winner == PLAYER1 {
+		screen.DrawImage(gameGraphics.Circle, gameBoardImageOptions)
+	} else {
+		screen.DrawImage(gameGraphics.Cross, gameBoardImageOptions)
+	}
+}
+func (g *Game) drawMiniBoard(i, j int, screen *ebiten.Image) {
+
+	for k := 0; k < 3; k++ {
+		for l := 0; l < 3; l++ {
+			if g.gameBoard[i][j].Board[k][l] == PLAYER1 {
+				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, string(PLAYER1))
+			} else if g.gameBoard[i][j].Board[k][l] == PLAYER2 {
+				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, string(PLAYER2))
+			}
+		}
+	}
+
+	gameBoardImageOptions := &ebiten.DrawImageOptions{}
+	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+	if g.isValidPlay(i, j) {
+		gameBoardImageOptions.ColorScale.Scale(0, 1, 0, 1)
+	}
+
+	screen.DrawImage(gameGraphics.MiniBoard, gameBoardImageOptions)
+}
+func (g *Game) isValidPlay(row, col int) bool {
+	if g.lastPlay.MiniBoardRow == -1 {
+		return true
+	} else if g.gameBoard[g.lastPlay.MiniBoardRow][g.lastPlay.MiniBoardCol].Winner != EMPTY {
+		return true
+	} else if row == g.lastPlay.MiniBoardRow && col == g.lastPlay.MiniBoardCol {
+		return true
+	}
+	return false
+}
+func (g *Game) displayInformation(screen *ebiten.Image) {
 	mx, my := ebiten.CursorPosition()
+
 	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
 
@@ -192,6 +232,7 @@ func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, sym string) {
 	opSymbol.GeoM.Translate(xPos, yPos)
 
 	gameImage.DrawImage(symbolImage, opSymbol)
+
 }
 
 func (g *Game) init() {
@@ -219,39 +260,32 @@ func (g *Game) init() {
 
 	// init game state
 	boardImage = gameGraphics.MainBoard
+
 	re := newRandom().Intn(nbPlayer)
 	if re == 0 {
 		g.playing = PLAYER1
-		g.alter = 0
 	} else {
 		g.playing = PLAYER2
-		g.alter = 1
 	}
 	g.Load()
 	g.ResetPoints()
+	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 }
 
 func (g *Game) Load() {
-	gameImage.Clear()
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			g.gameBoard[i][j] = MiniBoard{Board: [3][3]GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}, winner: EMPTY}
+			g.gameBoard[i][j] = miniBoard.MiniBoard{Board: [3][3]models.GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}, Winner: EMPTY}
 		}
-
 	}
 	g.round = 0
-	if g.alter == 0 {
-		g.playing = PLAYER2
-		g.alter = 1
-	} else if g.alter == 1 {
-		g.playing = PLAYER1
-		g.alter = 0
-	}
 	g.win = EMPTY
 	g.state = Playing
+	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
+
 }
 
-func (g *Game) wins(winner GameSymbol) {
+func (g *Game) wins(winner models.GameSymbol) {
 	if winner == PLAYER1 {
 		g.win = PLAYER1
 		g.pointsO++
@@ -260,34 +294,13 @@ func (g *Game) wins(winner GameSymbol) {
 		g.win = PLAYER2
 		g.pointsX++
 		g.state = PlayAgain
-	} /*else if g.round == 8 {
-		g.win = NONE
-		g.state = PlayAgain
-	} */
-}
-func (g *MiniBoard) checkWin() {
-	for i := 0; i < 3; i++ {
-		if g.winnerOnLine(i, 0, 0, 1) != EMPTY {
-			g.winner = g.winnerOnLine(i, 0, 0, 1)
-		}
-	}
-	for i := 0; i < 3; i++ {
-		if g.winnerOnLine(0, i, 1, 0) != EMPTY {
-			g.winner = g.winnerOnLine(0, i, 1, 0)
-		}
-	}
-	if g.winnerOnLine(0, 0, 1, 1) != EMPTY {
-		g.winner = g.winnerOnLine(0, 0, 1, 1)
-	}
-	if g.winnerOnLine(0, 2, 1, -1) != EMPTY {
-		g.winner = g.winnerOnLine(0, 2, 1, -1)
 	}
 }
-func (g *Game) CheckWin() GameSymbol {
+
+func (g *Game) CheckWin() models.GameSymbol {
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			g.gameBoard[i][j].checkWin()
-			println(g.gameBoard[i][j].winner)
+			g.gameBoard[i][j].CheckWin()
 		}
 	}
 	for i := 0; i < 3; i++ {
@@ -312,22 +325,15 @@ func (g *Game) CheckWin() GameSymbol {
 // winnerOnLine checks if there is a winner on the given line
 // x, y: the starting point of the line
 // dx, dy: delta applied to x and y to get the next point on the line
-func (g *Game) winnerOnLine(x, y, dx, dy int) GameSymbol {
+func (g *Game) winnerOnLine(x, y, dx, dy int) models.GameSymbol {
 	for i := 0; i < 3; i++ {
-		if g.gameBoard[x][y].winner != g.gameBoard[x+dx*i][y+dy*i].winner {
+		if g.gameBoard[x][y].Winner != g.gameBoard[x+dx*i][y+dy*i].Winner {
 			return EMPTY
 		}
 	}
-	return g.gameBoard[x][y].winner
+	return g.gameBoard[x][y].Winner
 }
-func (g *MiniBoard) winnerOnLine(x, y, dx, dy int) GameSymbol {
-	for i := 0; i < 3; i++ {
-		if g.Board[x][y] != g.Board[x+dx*i][y+dy*i] {
-			return EMPTY
-		}
-	}
-	return g.Board[x][y]
-}
+
 func (g *Game) ResetPoints() {
 	g.pointsO = 0
 	g.pointsX = 0
