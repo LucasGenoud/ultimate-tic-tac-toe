@@ -2,16 +2,12 @@ package main
 
 import (
 	"GoTicTacToe/lib/graphics"
-	"GoTicTacToe/lib/miniBoard"
 	"GoTicTacToe/lib/models"
-	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
-	"image/color"
 	"log"
 	"math/rand"
 	"os"
@@ -55,12 +51,31 @@ var (
 type Game struct {
 	playing   models.GameSymbol
 	state     GameState
-	gameBoard [3][3]miniBoard.MiniBoard
+	gameBoard [3][3]MiniBoard
 	round     int
 	pointsO   int
 	pointsX   int
 	win       models.GameSymbol
 	lastPlay  graphics.BoardCoord
+}
+
+func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
+	return g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol]
+}
+func (g *Game) setValueOfCoordinates(coordinates graphics.BoardCoord, value models.GameSymbol) {
+	g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol] = value
+}
+func (g *Game) getMiniBoardCoordinates(mouseX, mouseY int) graphics.BoardCoord {
+	miniTicTacToeSize := sWidth / 3
+	ticTacToeCellSize := miniTicTacToeSize / 3
+	mainRow := mouseX / miniTicTacToeSize
+	mainCol := mouseY / miniTicTacToeSize
+	normalizedX := mouseX - mainRow*miniTicTacToeSize
+	normalizedY := mouseY - mainCol*miniTicTacToeSize
+	miniRow := normalizedX / ticTacToeCellSize
+	miniCol := normalizedY / ticTacToeCellSize
+	return graphics.BoardCoord{MainBoardRow: mainRow, MainBoardCol: mainCol, MiniBoardRow: miniRow, MiniBoardCol: miniCol}
+
 }
 
 func (g *Game) Update() error {
@@ -90,9 +105,7 @@ func (g *Game) Update() error {
 				}
 				g.wins(g.CheckWin())
 				g.round++
-
 			}
-
 		}
 
 	case PlayAgain:
@@ -109,88 +122,7 @@ func (g *Game) Update() error {
 	}
 	return nil
 }
-func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
-	return g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol]
-}
-func (g *Game) setValueOfCoordinates(coordinates graphics.BoardCoord, value models.GameSymbol) {
-	g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol] = value
-}
-func (g *Game) getMiniBoardCoordinates(mouseX, mouseY int) graphics.BoardCoord {
-	miniTicTacToeSize := sWidth / 3
-	ticTacToeCellSize := miniTicTacToeSize / 3
-	mainRow := mouseX / miniTicTacToeSize
-	mainCol := mouseY / miniTicTacToeSize
-	normalizedX := mouseX - mainRow*miniTicTacToeSize
-	normalizedY := mouseY - mainCol*miniTicTacToeSize
-	miniRow := normalizedX / ticTacToeCellSize
-	miniCol := normalizedY / ticTacToeCellSize
-	return graphics.BoardCoord{MainBoardRow: mainRow, MainBoardCol: mainCol, MiniBoardRow: miniRow, MiniBoardCol: miniCol}
 
-}
-func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
-	if inpututil.KeyPressDuration(key) > 1 {
-		var msgText string
-		var colorText color.RGBA
-		colorChange := 255 - (255 / 60 * uint8(inpututil.KeyPressDuration(key)))
-		if key == ebiten.KeyEscape {
-			msgText = "CLOSING..."
-			colorText = color.RGBA{R: 255, G: colorChange, B: colorChange, A: 255}
-		} else if key == ebiten.KeyR {
-			msgText = "RESETING..."
-			colorText = color.RGBA{R: colorChange, G: 255, B: 255, A: 255}
-		}
-		text.Draw(screen, msgText, normalText, sWidth/2, sHeight-30, colorText)
-	}
-}
-
-func (g *Game) Draw(screen *ebiten.Image) {
-	gameImage.Clear()
-	for i := 0; i < 3; i++ {
-		for j := 0; j < 3; j++ {
-			if g.gameBoard[i][j].Winner == EMPTY {
-				g.drawMiniBoard(i, j, screen)
-			} else {
-				g.drawMiniBoardWinner(i, j, screen)
-			}
-		}
-	}
-	gameImage.DrawImage(gameGraphics.MainBoard, nil)
-	screen.DrawImage(gameImage, nil)
-
-	g.displayInformation(screen)
-}
-func (g *Game) drawMiniBoardWinner(i, j int, screen *ebiten.Image) {
-	gameBoardImageOptions := &ebiten.DrawImageOptions{}
-
-	gameBoardImageOptions.GeoM.Reset()
-	gameBoardImageOptions.GeoM.Scale(3, 3)
-	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
-	if g.gameBoard[i][j].Winner == PLAYER1 {
-		screen.DrawImage(gameGraphics.Circle, gameBoardImageOptions)
-	} else {
-		screen.DrawImage(gameGraphics.Cross, gameBoardImageOptions)
-	}
-}
-func (g *Game) drawMiniBoard(i, j int, screen *ebiten.Image) {
-
-	for k := 0; k < 3; k++ {
-		for l := 0; l < 3; l++ {
-			if g.gameBoard[i][j].Board[k][l] == PLAYER1 {
-				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, string(PLAYER1))
-			} else if g.gameBoard[i][j].Board[k][l] == PLAYER2 {
-				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, string(PLAYER2))
-			}
-		}
-	}
-
-	gameBoardImageOptions := &ebiten.DrawImageOptions{}
-	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
-	if g.isValidPlay(i, j) {
-		gameBoardImageOptions.ColorScale.Scale(0, 1, 0, 1)
-	}
-
-	screen.DrawImage(gameGraphics.MiniBoard, gameBoardImageOptions)
-}
 func (g *Game) isValidPlay(row, col int) bool {
 	if g.lastPlay.MiniBoardRow == -1 {
 		return true
@@ -201,29 +133,12 @@ func (g *Game) isValidPlay(row, col int) bool {
 	}
 	return false
 }
-func (g *Game) displayInformation(screen *ebiten.Image) {
-	mx, my := ebiten.CursorPosition()
 
-	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
-	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
-
-	keyChangeColor(ebiten.KeyEscape, screen)
-	keyChangeColor(ebiten.KeyR, screen)
-	msgOX := fmt.Sprintf("O: %v | X: %v", g.pointsO, g.pointsX)
-	text.Draw(screen, msgOX, normalText, sWidth/2, sHeight-5, color.White)
-	if g.win != EMPTY {
-		msgWin := fmt.Sprintf("%v wins!", string(g.win))
-		text.Draw(screen, msgWin, bigText, 70, 200, color.RGBA{G: 50, B: 200, A: 255})
-	}
-	msg := string(g.playing)
-	text.Draw(screen, msg, normalText, mx, my, color.RGBA{G: 255, A: 255})
-}
-
-func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, sym string) {
-	if sym == "X" {
+func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, symbol models.GameSymbol) {
+	if symbol == PLAYER1 {
 		symbolImage = gameGraphics.Cross
 	}
-	if sym == "O" {
+	if symbol == PLAYER2 {
 		symbolImage = gameGraphics.Circle
 	}
 
@@ -275,7 +190,7 @@ func (g *Game) init() {
 func (g *Game) Load() {
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			g.gameBoard[i][j] = miniBoard.MiniBoard{Board: [3][3]models.GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}, Winner: EMPTY}
+			g.gameBoard[i][j] = MiniBoard{Board: [3][3]models.GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}, Winner: EMPTY}
 		}
 	}
 	g.round = 0
@@ -343,11 +258,9 @@ func newRandom() *rand.Rand {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	return rand.New(s1)
 }
-
-func (g *Game) Layout(int, int) (int, int) {
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return sWidth, sHeight
 }
-
 func main() {
 	game := &Game{}
 	ebiten.SetWindowSize(sWidth, sHeight)

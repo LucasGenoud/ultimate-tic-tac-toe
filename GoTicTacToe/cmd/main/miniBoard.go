@@ -1,4 +1,4 @@
-package miniBoard
+package main
 
 import (
 	"GoTicTacToe/lib/models"
@@ -8,13 +8,6 @@ type MiniBoard struct {
 	Board  [3][3]models.GameSymbol
 	Winner models.GameSymbol
 }
-
-const (
-	PLAYER1 models.GameSymbol = 'O'
-	PLAYER2 models.GameSymbol = 'X'
-	EMPTY   models.GameSymbol = ' ' // for empty cell
-	NONE    models.GameSymbol = 0
-)
 
 func (g *MiniBoard) CheckWin() {
 	for i := 0; i < 3; i++ {
