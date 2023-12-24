@@ -136,10 +136,10 @@ func (g *Game) isValidPlay(row, col int) bool {
 
 func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, symbol models.GameSymbol) {
 	if symbol == PLAYER1 {
-		symbolImage = gameGraphics.Cross
+		symbolImage = gameGraphics.Circle
 	}
 	if symbol == PLAYER2 {
-		symbolImage = gameGraphics.Circle
+		symbolImage = gameGraphics.Cross
 	}
 
 	xPos, yPos := graphics.GetPositionOfSymbol(boardCoord)
