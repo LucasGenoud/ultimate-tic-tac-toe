@@ -107,7 +107,13 @@ func (g *Game) Update() error {
 				g.round++
 			}
 		}
-
+		if g.playing == PLAYER2 {
+			_, bestMove := g.Minimax(0, true)
+			g.setValueOfCoordinates(bestMove, PLAYER2)
+			g.wins(g.CheckWin())
+			g.playing = PLAYER1
+			g.round++
+		}
 	case PlayAgain:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Load()
@@ -268,4 +274,83 @@ func main() {
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// Minimax returns the best move for the AI and the score of that move
+func (g *Game) Minimax(depth int, isMaximizingPlayer bool) (int, graphics.BoardCoord) {
+	println(depth)
+	winner := g.CheckWin()
+	if winner == PLAYER1 {
+		return -1, graphics.BoardCoord{}
+	} else if winner == PLAYER2 {
+		return 1, graphics.BoardCoord{}
+	} else if g.isBoardFull() {
+		return 0, graphics.BoardCoord{}
+	}
+
+	if isMaximizingPlayer {
+		bestScore := -1000
+		var bestMove graphics.BoardCoord
+		for i := 0; i < 3; i++ {
+			for j := 0; j < 3; j++ {
+				for k := 0; k < 3; k++ {
+					for l := 0; l < 3; l++ {
+						if g.gameBoard[i][j].Board[k][l] == EMPTY && g.isValidPlay(i, j) {
+							g.gameBoard[i][j].Board[k][l] = PLAYER2
+							g.gameBoard[i][j].CheckWin() // Update winner for the mini-board
+
+							previousWinner := g.gameBoard[i][j].Winner
+
+							score, _ := g.Minimax(depth+1, false)
+							g.gameBoard[i][j].Board[k][l] = EMPTY
+							g.gameBoard[i][j].Winner = previousWinner
+							if score > bestScore {
+								bestScore = score
+								bestMove = graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}
+							}
+						}
+					}
+				}
+			}
+		}
+		return bestScore, bestMove
+	} else {
+		worstScore := 1000
+		var worstMove graphics.BoardCoord
+		for i := 0; i < 3; i++ {
+			for j := 0; j < 3; j++ {
+				for k := 0; k < 3; k++ {
+					for l := 0; l < 3; l++ {
+						if g.gameBoard[i][j].Board[k][l] == EMPTY && g.isValidPlay(i, j) {
+							g.gameBoard[i][j].CheckWin()
+							previousWinner := g.gameBoard[i][j].Winner
+							g.gameBoard[i][j].Board[k][l] = PLAYER1
+
+							score, _ := g.Minimax(depth+1, true)
+							g.gameBoard[i][j].Winner = previousWinner
+
+							g.gameBoard[i][j].Board[k][l] = EMPTY
+							if score < worstScore {
+								worstScore = score
+								worstMove = graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}
+							}
+						}
+					}
+				}
+			}
+		}
+		return worstScore, worstMove
+	}
+}
+
+// isBoardFull checks if the board is full
+func (g *Game) isBoardFull() bool {
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			if g.gameBoard[i][j].Winner == EMPTY {
+				return false
+			}
+		}
+	}
+	return true
 }
