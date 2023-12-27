@@ -87,12 +87,11 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 
 			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
 			game.makeMove(randomMove)
-			game.switchPlayer()
 		}
 
 		// Backpropagation
 		for node != nil {
-			node.Update(game.GetResult(g.playing))
+			node.Update(game.GetResult(node.playerJustMoved))
 			node = node.parent
 		}
 	}
@@ -102,7 +101,7 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 	fmt.Println(rootNode.visits)
 
 	// Return the move of the most visited child of the root node
-	return rootNode.MostVisitedChild().move
+	return rootNode.UCTSelectChild().move
 }
 
 type Node struct {
@@ -119,7 +118,7 @@ type Node struct {
 func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerJustMoved models.GameSymbol) *Node {
 	node := &Node{
 		parent:          parent,
-		state:           state,
+		state:           state.clone(),
 		move:            move,
 		children:        []*Node{},
 		visits:          0,
