@@ -96,22 +96,18 @@ func (g *Game) Update() error {
 			}
 			if g.getValueOfCoordinates(boardCoordinates) == EMPTY {
 				g.lastPlay = boardCoordinates
-				if g.playing == PLAYER1 {
-					g.setValueOfCoordinates(boardCoordinates, PLAYER1)
-					g.playing = PLAYER2
-				} else {
-					g.setValueOfCoordinates(boardCoordinates, PLAYER2)
-					g.playing = PLAYER1
-				}
+				g.setValueOfCoordinates(boardCoordinates, g.playing)
+				g.switchPlayer()
+
 				g.wins(g.CheckWin())
 				g.round++
 			}
 		}
-		if g.playing == PLAYER2 { // Define AI_PLAYER as needed
+		if g.playing == PLAYER2 {
 			bestMove := g.MonteCarloMove()
 			g.setValueOfCoordinates(bestMove, g.playing)
 			g.lastPlay = bestMove
-			g.playing = PLAYER1
+			g.switchPlayer()
 			g.wins(g.CheckWin())
 			g.round++
 
@@ -153,7 +149,9 @@ func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, symbol models.GameSymb
 	xPos, yPos := graphics.GetPositionOfSymbol(boardCoord)
 	opSymbol := &ebiten.DrawImageOptions{}
 	opSymbol.GeoM.Translate(xPos, yPos)
-
+	if g.lastPlay == boardCoord {
+		opSymbol.ColorScale.Scale(0.5, 0.5, 0.5, 1)
+	}
 	gameImage.DrawImage(symbolImage, opSymbol)
 
 }
