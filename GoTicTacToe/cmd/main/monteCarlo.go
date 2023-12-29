@@ -59,8 +59,8 @@ func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 
 func (g *Game) MonteCarloMove() graphics.BoardCoord {
 	// Create the root node with the current game state
-	rootNode := NewNode(nil, g.clone(), graphics.BoardCoord{}, g.playing)
-
+	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
+	rootNode := NewNode(nil, g.clone(), rootMove, g.playing)
 	// Run simulations for a certain amount of time
 	currentTime := time.Now()
 	for time.Since(currentTime).Seconds() < 5 {
@@ -79,6 +79,8 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 			move := node.GetUntriedMove()
 			game.makeMove(move)
 			node = node.AddChild(move, game)
+			game.switchPlayer()
+
 		}
 
 		// Simulation
@@ -87,6 +89,8 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 
 			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
 			game.makeMove(randomMove)
+			game.switchPlayer()
+
 		}
 
 		// Backpropagation
@@ -101,7 +105,7 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 	fmt.Println(rootNode.visits)
 
 	// Return the move of the most visited child of the root node
-	return rootNode.UCTSelectChild().move
+	return rootNode.MostVisitedChild().move
 }
 
 type Node struct {
@@ -132,7 +136,19 @@ func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerJustMove
 func (n *Node) HasUntriedMoves() bool {
 	return len(n.untriedMoves) > 0
 }
+func (n *Node) MostVisitedChild() *Node {
+	mostVisits := -1
+	var mostVisitedChild *Node
 
+	for _, child := range n.children {
+		if child.visits > mostVisits {
+			mostVisits = child.visits
+			mostVisitedChild = child
+		}
+	}
+
+	return mostVisitedChild
+}
 func (n *Node) UCTSelectChild() *Node {
 	bestScore := math.Inf(-1)
 	var bestChild *Node
@@ -168,33 +184,17 @@ func (n *Node) Update(result float64) {
 
 func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
 	if g.win == playerJustMoved {
-		return 1.0
+		return 1
 	} else if g.win == NONE {
 		return 0.2
-	} else if g.win == g.getOponents(playerJustMoved) {
-		return 0
 	}
 	return 0
-
 }
 func (g *Game) getOponents(playerJustMoved models.GameSymbol) models.GameSymbol {
 	if playerJustMoved == PLAYER1 {
 		return PLAYER2
 	}
 	return PLAYER1
-}
-func (n *Node) MostVisitedChild() *Node {
-	mostVisits := -1
-	var mostVisitedChild *Node
-
-	for _, child := range n.children {
-		if child.visits > mostVisits {
-			mostVisits = child.visits
-			mostVisitedChild = child
-		}
-	}
-
-	return mostVisitedChild
 }
 
 func (n *Node) HasChildren() bool {
@@ -204,5 +204,4 @@ func (n *Node) HasChildren() bool {
 func (g *Game) makeMove(move graphics.BoardCoord) {
 	g.setValueOfCoordinates(move, g.playing)
 	g.wins(g.CheckWin())
-	g.switchPlayer()
 }

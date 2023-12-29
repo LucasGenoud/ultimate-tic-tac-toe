@@ -77,7 +77,13 @@ func (g *Game) getMiniBoardCoordinates(mouseX, mouseY int) graphics.BoardCoord {
 	return graphics.BoardCoord{MainBoardRow: mainRow, MainBoardCol: mainCol, MiniBoardRow: miniRow, MiniBoardCol: miniCol}
 
 }
-
+func (g *Game) makePlay(coordinates graphics.BoardCoord) {
+	g.setValueOfCoordinates(coordinates, g.playing)
+	g.switchPlayer()
+	g.wins(g.CheckWin())
+	g.round++
+	g.lastPlay = coordinates
+}
 func (g *Game) Update() error {
 	switch g.state {
 	case Init:
@@ -95,23 +101,15 @@ func (g *Game) Update() error {
 				return nil
 			}
 			if g.getValueOfCoordinates(boardCoordinates) == EMPTY {
-				g.lastPlay = boardCoordinates
-				g.setValueOfCoordinates(boardCoordinates, g.playing)
-				g.switchPlayer()
-
-				g.wins(g.CheckWin())
-				g.round++
+				g.makePlay(boardCoordinates)
 			}
 		}
+
 		if g.playing == PLAYER2 {
 			bestMove := g.MonteCarloMove()
-			g.setValueOfCoordinates(bestMove, g.playing)
-			g.lastPlay = bestMove
-			g.switchPlayer()
-			g.wins(g.CheckWin())
-			g.round++
-
+			g.makePlay(bestMove)
 		}
+
 	case PlayAgain:
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Load()
