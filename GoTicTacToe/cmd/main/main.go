@@ -49,14 +49,17 @@ var (
 )
 
 type Game struct {
-	playing   models.GameSymbol
-	state     GameState
-	gameBoard [3][3]MiniBoard
-	round     int
-	pointsO   int
-	pointsX   int
-	win       models.GameSymbol
-	lastPlay  graphics.BoardCoord
+	playing          models.GameSymbol
+	state            GameState
+	gameBoard        [3][3]MiniBoard
+	round            int
+	pointsO          int
+	pointsX          int
+	win              models.GameSymbol
+	lastPlay         graphics.BoardCoord
+	AISimulations    int
+	AIWinProbability float64
+	AIRunning        bool
 }
 
 func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
@@ -89,7 +92,9 @@ func (g *Game) Update() error {
 	case Init:
 		g.init()
 	case Playing:
-
+		if g.AIRunning {
+			return nil
+		}
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
 			if mx > sWidth || my > sWidth {
@@ -106,8 +111,14 @@ func (g *Game) Update() error {
 		}
 
 		if g.playing == PLAYER2 {
-			bestMove := g.MonteCarloMove()
-			g.makePlay(bestMove)
+			go func() {
+				g.AIRunning = true
+				bestMove, simulations, winProbability := g.MonteCarloMove()
+				g.AISimulations = simulations
+				g.AIWinProbability = winProbability
+				g.makePlay(bestMove)
+				g.AIRunning = false
+			}()
 		}
 
 	case PlayAgain:
@@ -186,6 +197,7 @@ func (g *Game) init() {
 	} else {
 		g.playing = PLAYER2
 	}
+	g.playing = PLAYER2
 	g.Load()
 	g.ResetPoints()
 	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}

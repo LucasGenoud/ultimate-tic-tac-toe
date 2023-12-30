@@ -57,10 +57,10 @@ func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	return possibleMoves
 }
 
-func (g *Game) MonteCarloMove() graphics.BoardCoord {
+func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	// Create the root node with the current game state
 	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
-	rootNode := NewNode(nil, g.clone(), rootMove, g.playing)
+	rootNode := NewNode(nil, g, rootMove, g.playing)
 	// Run simulations for a certain amount of time
 	currentTime := time.Now()
 	for time.Since(currentTime).Seconds() < 5 {
@@ -72,14 +72,13 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 		for node.HasUntriedMoves() == false && node.HasChildren() {
 			node = node.UCTSelectChild()
 			game.makeMove(node.move)
-		}
 
+		}
 		// Expand the node (if possible)
 		if node.HasUntriedMoves() {
 			move := node.GetUntriedMove()
 			game.makeMove(move)
 			node = node.AddChild(move, game)
-			game.switchPlayer()
 
 		}
 
@@ -89,23 +88,24 @@ func (g *Game) MonteCarloMove() graphics.BoardCoord {
 
 			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
 			game.makeMove(randomMove)
-			game.switchPlayer()
 
 		}
 
 		// Backpropagation
 		for node != nil {
-			node.Update(game.GetResult(node.playerJustMoved))
+			node.Update(game.GetResult(game.getOponents(node.playerJustMoved)))
 			node = node.parent
 		}
 	}
 	// print the win probability of the best move
-	fmt.Println(rootNode.MostVisitedChild().wins / float64(rootNode.MostVisitedChild().visits))
-
+	mostVisitedChild := rootNode.MostVisitedChild()
+	winProbability := mostVisitedChild.wins / float64(mostVisitedChild.visits)
+	fmt.Println(winProbability)
 	fmt.Println(rootNode.visits)
 
+	bestMove := rootNode.MostVisitedChild()
 	// Return the move of the most visited child of the root node
-	return rootNode.MostVisitedChild().move
+	return bestMove.move, rootNode.visits, winProbability
 }
 
 type Node struct {
@@ -154,7 +154,7 @@ func (n *Node) UCTSelectChild() *Node {
 	var bestChild *Node
 
 	for _, child := range n.children {
-		uctValue := child.wins/float64(child.visits) + math.Sqrt(2*math.Log(float64(n.visits))/float64(child.visits))
+		uctValue := child.wins/float64(child.visits) + math.Sqrt(2)*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
 		if uctValue > bestScore {
 			bestScore = uctValue
 			bestChild = child
@@ -186,7 +186,7 @@ func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
 	if g.win == playerJustMoved {
 		return 1
 	} else if g.win == NONE {
-		return 0.2
+		return 0
 	}
 	return 0
 }
@@ -204,4 +204,7 @@ func (n *Node) HasChildren() bool {
 func (g *Game) makeMove(move graphics.BoardCoord) {
 	g.setValueOfCoordinates(move, g.playing)
 	g.wins(g.CheckWin())
+	g.round++
+	g.lastPlay = move
+	g.switchPlayer()
 }
