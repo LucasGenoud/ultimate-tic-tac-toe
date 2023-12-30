@@ -70,7 +70,7 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 			rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 			rootNode := NewNode(nil, g, rootMove, g.playing)
 			currentTime := time.Now()
-			for time.Since(currentTime).Seconds() < 5 {
+			for time.Since(currentTime).Milliseconds() < 5000 {
 				node := rootNode
 				game := g.clone()
 				// Selection and Expansion
