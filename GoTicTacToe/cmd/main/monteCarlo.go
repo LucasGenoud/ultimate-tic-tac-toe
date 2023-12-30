@@ -3,7 +3,6 @@ package main
 import (
 	"GoTicTacToe/lib/graphics"
 	"GoTicTacToe/lib/models"
-	"fmt"
 	"math"
 	"math/rand"
 	"runtime"
@@ -65,45 +64,11 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 
 	for i := 0; i < numCPU; i++ {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
-			rootNode := NewNode(nil, g, rootMove, g.playing)
-			currentTime := time.Now()
-			for time.Since(currentTime).Milliseconds() < 5000 {
-				node := rootNode
-				game := g.clone()
-				// Selection and Expansion
-				for node.HasUntriedMoves() == false && node.HasChildren() {
-					node = node.UCTSelectChild()
-					game.makeMove(node.move)
-				}
-				// Expand the node (if possible)
-				if node.HasUntriedMoves() {
-					move := node.GetUntriedMove()
-					game.makeMove(move)
-					node = node.AddChild(move, game)
-				}
-				// Simulation
-				for game.state == Playing {
-					possibleMoves := game.getPossibleMoves()
-					randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
-					game.makeMove(randomMove)
-				}
-				// Backpropagation
-				for node != nil {
-					node.Update(game.GetResult(game.getOponents(node.playerJustMoved)))
-					node = node.parent
-				}
-			}
-			results <- rootNode
-		}()
+		go g.MonteCarloTreeSearch(&wg, results)
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	wg.Wait()
+	close(results)
 
 	var bestMove *Node
 	var totalVisits int
@@ -115,10 +80,41 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	}
 
 	winProbability := bestMove.MostVisitedChild().wins / float64(bestMove.MostVisitedChild().visits)
-	fmt.Println(winProbability)
-	fmt.Println(totalVisits)
-
 	return bestMove.MostVisitedChild().move, totalVisits, winProbability
+}
+
+func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
+	defer wg.Done()
+	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
+	rootNode := NewNode(nil, g, rootMove, g.playing)
+	currentTime := time.Now()
+	for time.Since(currentTime).Milliseconds() < 5000 {
+		node := rootNode
+		game := g.clone()
+		// Selection and Expansion
+		for node.HasUntriedMoves() == false && node.HasChildren() {
+			node = node.UCTSelectChild()
+			game.makeMove(node.move)
+		}
+		// Expand the node (if possible)
+		if node.HasUntriedMoves() {
+			move := node.GetUntriedMove()
+			game.makeMove(move)
+			node = node.AddChild(move, game)
+		}
+		// Simulation
+		for game.state == Playing {
+			possibleMoves := game.getPossibleMoves()
+			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
+			game.makeMove(randomMove)
+		}
+		// Backpropagation
+		for node != nil {
+			node.Update(game.GetResult(game.getOponents(node.playerJustMoved)))
+			node = node.parent
+		}
+	}
+	results <- rootNode
 }
 
 type Node struct {
