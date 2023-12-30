@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"runtime"
+	"sync"
 	"time"
 )
 
@@ -56,56 +58,67 @@ func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	}
 	return possibleMoves
 }
-
 func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
-	// Create the root node with the current game state
-	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
-	rootNode := NewNode(nil, g, rootMove, g.playing)
-	// Run simulations for a certain amount of time
-	currentTime := time.Now()
-	for time.Since(currentTime).Seconds() < 5 {
-		// Each iteration of this loop is a single simulation
-		node := rootNode
-		game := g.clone()
+	var wg sync.WaitGroup
+	numCPU := runtime.NumCPU()
+	results := make(chan *Node, numCPU)
 
-		// Selection and Expansion
-		for node.HasUntriedMoves() == false && node.HasChildren() {
-			node = node.UCTSelectChild()
-			game.makeMove(node.move)
+	for i := 0; i < numCPU; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
+			rootNode := NewNode(nil, g, rootMove, g.playing)
+			currentTime := time.Now()
+			for time.Since(currentTime).Seconds() < 5 {
+				node := rootNode
+				game := g.clone()
+				// Selection and Expansion
+				for node.HasUntriedMoves() == false && node.HasChildren() {
+					node = node.UCTSelectChild()
+					game.makeMove(node.move)
+				}
+				// Expand the node (if possible)
+				if node.HasUntriedMoves() {
+					move := node.GetUntriedMove()
+					game.makeMove(move)
+					node = node.AddChild(move, game)
+				}
+				// Simulation
+				for game.state == Playing {
+					possibleMoves := game.getPossibleMoves()
+					randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
+					game.makeMove(randomMove)
+				}
+				// Backpropagation
+				for node != nil {
+					node.Update(game.GetResult(game.getOponents(node.playerJustMoved)))
+					node = node.parent
+				}
+			}
+			results <- rootNode
+		}()
+	}
 
-		}
-		// Expand the node (if possible)
-		if node.HasUntriedMoves() {
-			move := node.GetUntriedMove()
-			game.makeMove(move)
-			node = node.AddChild(move, game)
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 
-		}
-
-		// Simulation
-		for game.state == Playing {
-			possibleMoves := game.getPossibleMoves()
-
-			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
-			game.makeMove(randomMove)
-
-		}
-
-		// Backpropagation
-		for node != nil {
-			node.Update(game.GetResult(game.getOponents(node.playerJustMoved)))
-			node = node.parent
+	var bestMove *Node
+	var totalVisits int
+	for result := range results {
+		totalVisits += result.visits
+		if bestMove == nil || result.MostVisitedChild().visits > bestMove.MostVisitedChild().visits {
+			bestMove = result
 		}
 	}
-	// print the win probability of the best move
-	mostVisitedChild := rootNode.MostVisitedChild()
-	winProbability := mostVisitedChild.wins / float64(mostVisitedChild.visits)
-	fmt.Println(winProbability)
-	fmt.Println(rootNode.visits)
 
-	bestMove := rootNode.MostVisitedChild()
-	// Return the move of the most visited child of the root node
-	return bestMove.move, rootNode.visits, winProbability
+	winProbability := bestMove.MostVisitedChild().wins / float64(bestMove.MostVisitedChild().visits)
+	fmt.Println(winProbability)
+	fmt.Println(totalVisits)
+
+	return bestMove.MostVisitedChild().move, totalVisits, winProbability
 }
 
 type Node struct {

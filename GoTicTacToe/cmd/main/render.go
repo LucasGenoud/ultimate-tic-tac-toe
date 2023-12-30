@@ -63,7 +63,7 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 
 	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
-	msgAI := fmt.Sprintf("AI simulations: %v \nAI win probabilities: %0.2f ", g.AISimulations, g.AIWinProbability*100)
+	msgAI := fmt.Sprintf("AI simulations: %v \nAI win confidence: %0.2f ", g.AISimulations, g.AIWinProbability*100)
 	text.Draw(screen, msgAI, normalText, 100, sHeight-30, color.White)
 	keyChangeColor(ebiten.KeyEscape, screen)
 	keyChangeColor(ebiten.KeyR, screen)

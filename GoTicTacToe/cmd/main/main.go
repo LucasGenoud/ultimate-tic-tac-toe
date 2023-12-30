@@ -197,7 +197,6 @@ func (g *Game) init() {
 	} else {
 		g.playing = PLAYER2
 	}
-	g.playing = PLAYER2
 	g.Load()
 	g.ResetPoints()
 	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
