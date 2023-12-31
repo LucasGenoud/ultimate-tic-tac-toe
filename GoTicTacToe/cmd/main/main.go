@@ -80,13 +80,7 @@ func (g *Game) getMiniBoardCoordinates(mouseX, mouseY int) graphics.BoardCoord {
 	return graphics.BoardCoord{MainBoardRow: mainRow, MainBoardCol: mainCol, MiniBoardRow: miniRow, MiniBoardCol: miniCol}
 
 }
-func (g *Game) makePlay(coordinates graphics.BoardCoord) {
-	g.setValueOfCoordinates(coordinates, g.playing)
-	g.switchPlayer()
-	g.wins(g.CheckWin())
-	g.round++
-	g.lastPlay = coordinates
-}
+
 func (g *Game) Update() error {
 	switch g.state {
 	case Init:
@@ -297,9 +291,18 @@ func main() {
 }
 
 func (g *Game) switchPlayer() {
-	if g.playing == PLAYER1 {
-		g.playing = PLAYER2
-	} else {
-		g.playing = PLAYER1
+	g.playing = g.getOpponents(g.playing)
+}
+func (g *Game) getOpponents(playerJustMoved models.GameSymbol) models.GameSymbol {
+	if playerJustMoved == PLAYER1 {
+		return PLAYER2
 	}
+	return PLAYER1
+}
+func (g *Game) makePlay(move graphics.BoardCoord) {
+	g.setValueOfCoordinates(move, g.playing)
+	g.wins(g.CheckWin())
+	g.round++
+	g.lastPlay = move
+	g.switchPlayer()
 }

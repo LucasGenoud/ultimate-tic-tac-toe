@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var (
+	EXPLORATION_CONSTANT = math.Sqrt(2)
+)
+
 func (g *Game) clone() *Game {
 	clonedGame := &Game{
 		playing:  g.playing,
@@ -62,7 +66,7 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	numCPU := runtime.NumCPU()
 	results := make(chan *Node, numCPU)
 
-	for i := 0; i < numCPU; i++ {
+	for i := 0; i < 1; i++ {
 		wg.Add(1)
 		go g.MonteCarloTreeSearch(&wg, results)
 	}
@@ -94,23 +98,23 @@ func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
 		// Selection and Expansion
 		for node.HasUntriedMoves() == false && node.HasChildren() {
 			node = node.UCTSelectChild()
-			game.makeMove(node.move)
+			game.makePlay(node.move)
 		}
 		// Expand the node (if possible)
 		if node.HasUntriedMoves() {
 			move := node.GetUntriedMove()
-			game.makeMove(move)
+			game.makePlay(move)
 			node = node.AddChild(move, game)
 		}
 		// Simulation
 		for game.state == Playing {
 			possibleMoves := game.getPossibleMoves()
 			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
-			game.makeMove(randomMove)
+			game.makePlay(randomMove)
 		}
 		// Backpropagation
 		for node != nil {
-			node.Update(game.GetResult(game.getOponents(node.playerJustMoved)))
+			node.Update(game.GetResult(game.getOpponents(node.playerJustMoved)))
 			node = node.parent
 		}
 	}
@@ -163,7 +167,7 @@ func (n *Node) UCTSelectChild() *Node {
 	var bestChild *Node
 
 	for _, child := range n.children {
-		uctValue := child.wins/float64(child.visits) + math.Sqrt(2)*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
+		uctValue := child.wins/float64(child.visits) + EXPLORATION_CONSTANT*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
 		if uctValue > bestScore {
 			bestScore = uctValue
 			bestChild = child
@@ -199,21 +203,7 @@ func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
 	}
 	return 0
 }
-func (g *Game) getOponents(playerJustMoved models.GameSymbol) models.GameSymbol {
-	if playerJustMoved == PLAYER1 {
-		return PLAYER2
-	}
-	return PLAYER1
-}
 
 func (n *Node) HasChildren() bool {
 	return len(n.children) > 0
-}
-
-func (g *Game) makeMove(move graphics.BoardCoord) {
-	g.setValueOfCoordinates(move, g.playing)
-	g.wins(g.CheckWin())
-	g.round++
-	g.lastPlay = move
-	g.switchPlayer()
 }
