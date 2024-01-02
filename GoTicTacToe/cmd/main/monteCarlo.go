@@ -107,12 +107,12 @@ func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
 		node := rootNode
 		game := g.clone()
 		// Selection and Expansion
-		for node.HasUntriedMoves() == false && node.HasChildren() {
+		for node.HasUntriedMoves() == false && node.HasChildren() && game.state == Playing {
 			node = node.UCTSelectChild()
 			game.makePlay(node.move)
 		}
 		// Expand the node (if possible)
-		if node.HasUntriedMoves() {
+		if node.HasUntriedMoves() && game.state == Playing {
 			move := node.GetUntriedMove()
 			game.makePlay(move)
 			node = node.AddChild(move, game)

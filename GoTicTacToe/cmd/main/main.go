@@ -202,6 +202,7 @@ func (g *Game) Load() {
 			g.gameBoard[i][j] = MiniBoard{Board: [3][3]models.GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}, Winner: EMPTY}
 		}
 	}
+
 	g.round = 0
 	g.win = EMPTY
 	g.state = Playing
