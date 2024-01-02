@@ -41,6 +41,17 @@ func (g *Game) clone() *Game {
 	return clonedGame
 }
 
+type Node struct {
+	parent       *Node
+	children     []*Node
+	move         graphics.BoardCoord
+	state        *Game
+	visits       int
+	wins         float64
+	untriedMoves []graphics.BoardCoord
+	playerTurn   models.GameSymbol
+}
+
 func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	possibleMoves := make([]graphics.BoardCoord, 0)
 
@@ -114,34 +125,23 @@ func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
 		}
 		// Backpropagation
 		for node != nil {
-			node.Update(game.GetResult(game.getOpponents(node.playerJustMoved)))
+			node.Update(game.GetResult(game.getOpponents(node.playerTurn)))
 			node = node.parent
 		}
 	}
 	results <- rootNode
 }
 
-type Node struct {
-	parent          *Node
-	children        []*Node
-	move            graphics.BoardCoord
-	state           *Game
-	visits          int
-	wins            float64
-	untriedMoves    []graphics.BoardCoord
-	playerJustMoved models.GameSymbol
-}
-
-func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerJustMoved models.GameSymbol) *Node {
+func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn models.GameSymbol) *Node {
 	node := &Node{
-		parent:          parent,
-		state:           state.clone(),
-		move:            move,
-		children:        []*Node{},
-		visits:          0,
-		wins:            0,
-		untriedMoves:    state.getPossibleMoves(),
-		playerJustMoved: playerJustMoved,
+		parent:       parent,
+		state:        state.clone(),
+		move:         move,
+		children:     []*Node{},
+		visits:       0,
+		wins:         0,
+		untriedMoves: state.getPossibleMoves(),
+		playerTurn:   playerTurn,
 	}
 	return node
 }
