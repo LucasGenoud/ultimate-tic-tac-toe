@@ -29,6 +29,7 @@ const (
 	Init GameState = iota
 	Playing
 	PlayAgain
+	WaitingForGameStart
 )
 
 // enum determining the symbols contained in the game
@@ -60,6 +61,8 @@ type Game struct {
 	AISimulations    int
 	AIWinProbability float64
 	AIRunning        bool
+	AIDifficulty     int64
+	AIEnabled        bool
 }
 
 func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
@@ -85,10 +88,24 @@ func (g *Game) Update() error {
 	switch g.state {
 	case Init:
 		g.init()
+	case WaitingForGameStart:
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+			g.state = Playing
+		}
+		for i := ebiten.Key1; i <= ebiten.Key5; i++ {
+			if inpututil.IsKeyJustPressed(i) {
+				g.AIDifficulty = int64(i - ebiten.Key1 + 1)
+				break
+			}
+		}
+		if inpututil.IsKeyJustPressed(ebiten.KeyA) {
+			g.AIEnabled = !g.AIEnabled
+		}
 	case Playing:
 		if g.AIRunning {
 			return nil
 		}
+
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
 			if mx > sWidth || my > sWidth {
@@ -104,7 +121,7 @@ func (g *Game) Update() error {
 			}
 		}
 
-		if g.playing == PLAYER2 {
+		if g.AIEnabled && g.playing == PLAYER2 {
 			go func() {
 				g.AIRunning = true
 				bestMove, simulations, winProbability := g.MonteCarloMove()
@@ -193,7 +210,9 @@ func (g *Game) init() {
 	}
 	g.Load()
 	g.ResetPoints()
+	g.state = WaitingForGameStart
 	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
+	g.AIEnabled = true
 }
 
 func (g *Game) Load() {
@@ -205,9 +224,10 @@ func (g *Game) Load() {
 
 	g.round = 0
 	g.win = EMPTY
-	g.state = Playing
 	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
-
+	if g.AIDifficulty == 0 {
+		g.AIDifficulty = 5
+	}
 }
 
 func (g *Game) wins(winner models.GameSymbol) {

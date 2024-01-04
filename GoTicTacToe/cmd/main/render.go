@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font"
 	"image/color"
 )
 
@@ -63,8 +64,12 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 
 	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
-	msgAI := fmt.Sprintf("AI simulations: %v \nAI win confidence: %0.2f ", g.AISimulations, g.AIWinProbability*100)
-	text.Draw(screen, msgAI, normalText, 100, sHeight-30, color.White)
+
+	if g.AIEnabled {
+		msgAI := fmt.Sprintf("AI simulations: %v \nAI win confidence: %0.2f\nAI difficulty: %v ", g.AISimulations, g.AIWinProbability*100, g.AIDifficulty)
+		text.Draw(screen, msgAI, normalText, 100, sHeight-50, color.White)
+	}
+
 	keyChangeColor(ebiten.KeyEscape, screen)
 	keyChangeColor(ebiten.KeyR, screen)
 	msgOX := fmt.Sprintf("O: %v | X: %v", g.pointsO, g.pointsX)
@@ -72,6 +77,19 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 	if g.win != EMPTY {
 		msgWin := fmt.Sprintf("%v wins!", string(g.win))
 		text.Draw(screen, msgWin, bigText, 70, 200, color.RGBA{G: 50, B: 200, A: 255})
+	}
+	if g.state == WaitingForGameStart {
+		msg := ""
+		if g.AIEnabled {
+			msg = "Press SPACE to start\nPress A to toggle\nAI 1 to 5 to change difficulty"
+
+		} else {
+			msg = "Press SPACE to start\nPress A to toggle AI"
+
+		}
+		widthX, _ := font.BoundString(normalText, msg)
+
+		text.Draw(screen, msg, normalText, int(sWidth/2-widthX.Min.X), sHeight/2, color.RGBA{0, 255, 255, 255})
 	}
 	msg := string(g.playing)
 	text.Draw(screen, msg, normalText, mx, my, color.RGBA{G: 255, A: 255})
