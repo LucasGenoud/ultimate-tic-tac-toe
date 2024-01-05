@@ -227,6 +227,8 @@ func (g *Game) Load() {
 	if g.AIDifficulty == 0 {
 		g.AIDifficulty = 5
 	}
+	g.state = WaitingForGameStart
+
 }
 
 func (g *Game) wins(winner models.GameSymbol) {
