@@ -81,10 +81,10 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 	if g.state == WaitingForGameStart {
 		msg := ""
 		if g.AIEnabled {
-			msg = "Press SPACE to start\nPress A to toggle\nAI 1 to 5 to change difficulty"
+			msg = "Press SPACE to start\nPress A to switch to multiplayer\nPress 1 to 5 to change AI difficulty"
 
 		} else {
-			msg = "Press SPACE to start\nPress A to toggle AI"
+			msg = "Press SPACE to start\nPress A to enable AI"
 
 		}
 		widthX, _ := font.BoundString(normalText, msg)
