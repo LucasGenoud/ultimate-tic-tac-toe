@@ -43,10 +43,9 @@ func (g *Game) drawMiniBoard(i, j int, screen *ebiten.Image) {
 
 	for k := 0; k < 3; k++ {
 		for l := 0; l < 3; l++ {
-			if g.gameBoard[i][j].Board[k][l] == PLAYER1 {
-				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, PLAYER1)
-			} else if g.gameBoard[i][j].Board[k][l] == PLAYER2 {
-				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, PLAYER2)
+			symbolInCell := g.gameBoard[i][j].Board[k][l]
+			if symbolInCell == PLAYER1 || symbolInCell == PLAYER2 {
+				g.DrawSymbol(graphics.BoardCoord{MainBoardRow: i, MainBoardCol: j, MiniBoardRow: k, MiniBoardCol: l}, symbolInCell)
 			}
 		}
 	}

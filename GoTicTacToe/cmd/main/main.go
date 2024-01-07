@@ -159,12 +159,7 @@ func (g *Game) isValidPlay(row, col int) bool {
 }
 
 func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, symbol models.GameSymbol) {
-	if symbol == PLAYER1 {
-		symbolImage = gameGraphics.Circle
-	}
-	if symbol == PLAYER2 {
-		symbolImage = gameGraphics.Cross
-	}
+	symbolImage = g.getSymbolImage(symbol)
 
 	xPos, yPos := graphics.GetPositionOfSymbol(boardCoord)
 	opSymbol := &ebiten.DrawImageOptions{}
@@ -327,4 +322,10 @@ func (g *Game) makePlay(move graphics.BoardCoord) {
 	g.round++
 	g.lastPlay = move
 	g.switchPlayer()
+}
+func (g *Game) getSymbolImage(player models.GameSymbol) *ebiten.Image {
+	if player == PLAYER1 {
+		return gameGraphics.Circle
+	}
+	return gameGraphics.Cross
 }
