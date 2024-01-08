@@ -5,7 +5,6 @@ import (
 	"GoTicTacToe/lib/models"
 	"math"
 	"math/rand"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -50,8 +49,14 @@ type Node struct {
 	wins         float64
 	untriedMoves []graphics.BoardCoord
 	playerTurn   models.GameSymbol
+	mutex        sync.Mutex
 }
 
+func (n *Node) Update(result float64) {
+
+	n.visits++
+	n.wins += result
+}
 func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	possibleMoves := make([]graphics.BoardCoord, 0)
 
@@ -73,63 +78,59 @@ func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	return possibleMoves
 }
 func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
-	var wg sync.WaitGroup
-	numCPU := runtime.NumCPU()
-	results := make(chan *Node, numCPU)
-
-	for i := 0; i < 1; i++ {
-		wg.Add(1)
-		go g.MonteCarloTreeSearch(&wg, results)
-	}
-
-	wg.Wait()
-	close(results)
-
-	var bestMove *Node
-	var totalVisits int
-	for result := range results {
-		totalVisits += result.visits
-		if bestMove == nil || result.MostVisitedChild().visits > bestMove.MostVisitedChild().visits {
-			bestMove = result
-		}
-	}
-
-	winProbability := bestMove.MostVisitedChild().wins / float64(bestMove.MostVisitedChild().visits)
-	return bestMove.MostVisitedChild().move, totalVisits, winProbability
-}
-
-func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
-	defer wg.Done()
 	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 	rootNode := NewNode(nil, g, rootMove, g.playing)
 	currentTime := time.Now()
-	for time.Since(currentTime).Milliseconds() < g.AIDifficulty*1000 {
-		node := rootNode
-		game := g.clone()
-		// Selection and Expansion
-		for node.HasUntriedMoves() == false && node.HasChildren() && game.state == Playing {
-			node = node.UCTSelectChild()
-			game.makePlay(node.move)
-		}
-		// Expand the node (if possible)
-		if node.HasUntriedMoves() && game.state == Playing {
-			move := node.GetUntriedMove()
-			game.makePlay(move)
-			node = node.AddChild(move, game)
-		}
-		// Simulation
-		for game.state == Playing {
-			possibleMoves := game.getPossibleMoves()
-			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
-			game.makePlay(randomMove)
-		}
-		// Backpropagation
-		for node != nil {
-			node.Update(game.GetResult(game.getOpponents(node.playerTurn)))
-			node = node.parent
-		}
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			for time.Since(currentTime).Milliseconds() < g.AIDifficulty*1000 {
+
+				node := rootNode
+				game := g.clone()
+				// Selection and Expansion
+				for node.HasUntriedMoves() == false && node.HasChildren() && game.state == Playing {
+					node = node.UCTSelectChild()
+					game.makePlay(node.move)
+				}
+
+				node.mutex.Lock()
+
+				// Expand the node (if possible)
+				if node.HasUntriedMoves() && game.state == Playing {
+					move := node.GetUntriedMove()
+
+					game.makePlay(move)
+
+					node = node.AddChild(move, game)
+				} else {
+					node.mutex.Unlock()
+				}
+				// Simulation
+				for game.state == Playing {
+					possibleMoves := game.getPossibleMoves()
+					randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
+					game.makePlay(randomMove)
+				}
+				// Backpropagation
+				for node != nil {
+					node.mutex.Lock()
+					node.Update(game.GetResult(game.getOpponents(node.playerTurn)))
+					node.mutex.Unlock()
+					node = node.parent
+				}
+			}
+		}()
+
 	}
-	results <- rootNode
+
+	wg.Wait()
+
+	winProbability := rootNode.MostVisitedChild().wins / float64(rootNode.MostVisitedChild().visits)
+	return rootNode.MostVisitedChild().move, rootNode.visits, winProbability
 }
 
 func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn models.GameSymbol) *Node {
@@ -163,21 +164,26 @@ func (n *Node) MostVisitedChild() *Node {
 	return mostVisitedChild
 }
 func (n *Node) UCTSelectChild() *Node {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
 	bestScore := math.Inf(-1)
 	var bestChild *Node
 
 	for _, child := range n.children {
+		child.mutex.Lock()
 		uctValue := child.wins/float64(child.visits) + EXPLORATION_CONSTANT*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
 		if uctValue > bestScore {
 			bestScore = uctValue
 			bestChild = child
 		}
+		child.mutex.Unlock()
 	}
 
 	return bestChild
 }
 
 func (n *Node) GetUntriedMove() graphics.BoardCoord {
+	defer n.mutex.Unlock()
 	index := rand.Intn(len(n.untriedMoves))
 	move := n.untriedMoves[index]
 	n.untriedMoves = append(n.untriedMoves[:index], n.untriedMoves[index+1:]...)
@@ -188,11 +194,6 @@ func (n *Node) AddChild(move graphics.BoardCoord, state *Game) *Node {
 	child := NewNode(n, state, move, state.playing)
 	n.children = append(n.children, child)
 	return child
-}
-
-func (n *Node) Update(result float64) {
-	n.visits++
-	n.wins += result
 }
 
 func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
