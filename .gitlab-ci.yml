@@ -3,7 +3,7 @@ stages:
 
 build_mac:
   stage: build
-  image: golang:1.17
+  image: golang:1.21
   script:
     - GOOS=darwin GOARCH=amd64 go build -o main_mac cmd/main/*.go
   artifacts:
@@ -12,7 +12,7 @@ build_mac:
 
 build_linux:
   stage: build
-  image: golang:1.17
+  image: golang:1.21
   script:
     - GOOS=linux GOARCH=amd64 go build -o main_linux cmd/main/*.go
   artifacts:
@@ -21,7 +21,7 @@ build_linux:
 
 build_windows:
   stage: build
-  image: golang:1.17
+  image: golang:1.21
   script:
     - GOOS=windows GOARCH=amd64 go build -o main_windows.exe cmd/main/*.go
   artifacts:
