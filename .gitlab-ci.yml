@@ -3,9 +3,8 @@ stages:
 
 build_mac:
   stage: build
-  image: golang:1.21
+  image: golang:alpine
   script:
-    - apt-get update && apt-get install -y \ libx11-dev \  && rm -rf /var/lib/apt/lists/*
     - GOOS=darwin GOARCH=amd64 go build -o main_mac cmd/main/*.go
   artifacts:
     paths:
@@ -13,7 +12,7 @@ build_mac:
 
 build_linux:
   stage: build
-  image: golang:1.21
+  image: golang:alpine
   script:
     - GOOS=linux GOARCH=amd64 go build -o main_linux cmd/main/*.go
   artifacts:
@@ -22,7 +21,7 @@ build_linux:
 
 build_windows:
   stage: build
-  image: golang:1.21
+  image: golang:alpine
   script:
     - GOOS=windows GOARCH=amd64 go build -o main_windows.exe cmd/main/*.go
   artifacts:
