@@ -5,7 +5,7 @@ build_mac:
   stage: build
   image: golang:1.21
   script:
-    - RUN apt-get update && apt-get install -y \ libx11-dev \  && rm -rf /var/lib/apt/lists/*
+    - apt-get update && apt-get install -y \ libx11-dev \  && rm -rf /var/lib/apt/lists/*
     - GOOS=darwin GOARCH=amd64 go build -o main_mac cmd/main/*.go
   artifacts:
     paths:
