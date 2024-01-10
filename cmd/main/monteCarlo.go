@@ -8,10 +8,13 @@ import (
 	"time"
 )
 
+// Exploration constant for Monte Carlo Tree Search,
+// used in UCT formula, balance between exploration and exploitation
 var (
 	EXPLORATION_CONSTANT = math.Sqrt(2)
 )
 
+// Clone a game with a deep copy of the state
 func (g *Game) clone() *Game {
 	clonedGame := &Game{
 		playing:  g.playing,
@@ -39,6 +42,7 @@ func (g *Game) clone() *Game {
 	return clonedGame
 }
 
+// Node for Monte Carlo Tree Search
 type Node struct {
 	parent       *Node
 	children     []*Node
@@ -50,6 +54,7 @@ type Node struct {
 	playerTurn   models.GameSymbol
 }
 
+// Get all the possible moves for the current state of the game
 func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	possibleMoves := make([]graphics.BoardCoord, 0)
 
@@ -70,6 +75,9 @@ func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	}
 	return possibleMoves
 }
+
+// Runs the Monte Carlo Tree Search algorithm for a given game state and a specified time.
+// returns the best move found, the number of visits and the win probability
 func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 	rootNode := NewNode(nil, g, rootMove, g.playing)
@@ -105,6 +113,7 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	return rootNode.MostVisitedChild().move, rootNode.visits, winProbability
 }
 
+// Create a new node for the Monte Carlo Tree Search and attach it to its parent
 func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn models.GameSymbol) *Node {
 	node := &Node{
 		parent:       parent,
@@ -119,9 +128,12 @@ func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn mod
 	return node
 }
 
+// Check if the node has untried moves
 func (n *Node) HasUntriedMoves() bool {
 	return len(n.untriedMoves) > 0
 }
+
+// Get the most visited child of the node, used when returning the best move
 func (n *Node) MostVisitedChild() *Node {
 	mostVisits := -1
 	var mostVisitedChild *Node
@@ -135,11 +147,14 @@ func (n *Node) MostVisitedChild() *Node {
 
 	return mostVisitedChild
 }
+
+// Select the best child of the node using the UCT formula
 func (n *Node) UCTSelectChild() *Node {
 	bestScore := math.Inf(-1)
 	var bestChild *Node
 
 	for _, child := range n.children {
+		// Formula balancing exploration (of nodes with good win probabilities) and exploration (of nodes with few visits)
 		uctValue := child.wins/float64(child.visits) + EXPLORATION_CONSTANT*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
 		if uctValue > bestScore {
 			bestScore = uctValue
@@ -150,6 +165,7 @@ func (n *Node) UCTSelectChild() *Node {
 	return bestChild
 }
 
+// Get a list of all the moves not yet tried for a spceific node
 func (n *Node) GetUntriedMove() graphics.BoardCoord {
 	index := rand.Intn(len(n.untriedMoves))
 	move := n.untriedMoves[index]
@@ -157,22 +173,25 @@ func (n *Node) GetUntriedMove() graphics.BoardCoord {
 	return move
 }
 
+// Add a child to a node
 func (n *Node) AddChild(move graphics.BoardCoord, state *Game) *Node {
 	child := NewNode(n, state, move, state.playing)
 	n.children = append(n.children, child)
 	return child
 }
 
+// Update the number of visits and wins for a node, used during backpropagation phase
 func (n *Node) Update(result float64) {
 	n.visits++
 	n.wins += result
 }
 
+// Get the result of a game for a specific player
 func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
 	if g.win == playerJustMoved {
 		return 1
 	} else if g.win == NONE {
-		return 0
+		return 0.2
 	}
 	return 0
 }
