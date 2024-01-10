@@ -5,8 +5,6 @@ import (
 	"GoTicTacToe/lib/models"
 	"math"
 	"math/rand"
-	"runtime"
-	"sync"
 	"time"
 )
 
@@ -73,33 +71,6 @@ func (g *Game) getPossibleMoves() []graphics.BoardCoord {
 	return possibleMoves
 }
 func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
-	var wg sync.WaitGroup
-	numCPU := runtime.NumCPU()
-	results := make(chan *Node, numCPU)
-
-	for i := 0; i < 1; i++ {
-		wg.Add(1)
-		go g.MonteCarloTreeSearch(&wg, results)
-	}
-
-	wg.Wait()
-	close(results)
-
-	var bestMove *Node
-	var totalVisits int
-	for result := range results {
-		totalVisits += result.visits
-		if bestMove == nil || result.MostVisitedChild().visits > bestMove.MostVisitedChild().visits {
-			bestMove = result
-		}
-	}
-
-	winProbability := bestMove.MostVisitedChild().wins / float64(bestMove.MostVisitedChild().visits)
-	return bestMove.MostVisitedChild().move, totalVisits, winProbability
-}
-
-func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
-	defer wg.Done()
 	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 	rootNode := NewNode(nil, g, rootMove, g.playing)
 	currentTime := time.Now()
@@ -129,7 +100,9 @@ func (g *Game) MonteCarloTreeSearch(wg *sync.WaitGroup, results chan *Node) {
 			node = node.parent
 		}
 	}
-	results <- rootNode
+
+	winProbability := rootNode.MostVisitedChild().wins / float64(rootNode.MostVisitedChild().visits)
+	return rootNode.MostVisitedChild().move, rootNode.visits, winProbability
 }
 
 func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn models.GameSymbol) *Node {
