@@ -14,6 +14,8 @@ build_linux:
   stage: build
   image: golang:alpine
   script:
+    - apt-get update
+    - apt install build-essential
     - GOOS=linux GOARCH=amd64 go build -o main_linux cmd/main/*.go
   artifacts:
     paths:
