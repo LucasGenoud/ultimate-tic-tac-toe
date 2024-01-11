@@ -6,7 +6,7 @@ stages:
 before_script:
   - go mod download
   - apt-get update -y
-  - apt-get install -y libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libxxf86vm-dev
+  - apt-get install -y libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libxxf86vm-dev xorg-dev libXcursor-devel libXi-devel libXinerama-devel libXrandr-devel
 
 build_mac:
   stage: build
@@ -21,7 +21,6 @@ build_linux:
   stage: build
   image: golang:1.21
   script:
-    - apk add --update alpine-sdk libx11-dev tiff-dev
     - GOOS=linux GOARCH=amd64 go build -o main_linux cmd/main/*.go
   artifacts:
     paths:
