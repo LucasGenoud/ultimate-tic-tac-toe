@@ -9,15 +9,6 @@ before_script:
    # Courtesy of Fanny Castella for the list of build dependencies
   - apt-get install -y libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libxxf86vm-dev
 
-build_mac:
-  stage: build
-  image: golang:1.21
-  script:
-    - GOOS=darwin GOARCH=arm64 go build -o main_mac cmd/main/*.go
-  artifacts:
-    paths:
-      - main_mac
-
 build_linux:
   stage: build
   image: golang:1.21
