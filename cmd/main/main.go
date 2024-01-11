@@ -120,7 +120,6 @@ func (g *Game) Update() error {
 				g.makePlay(boardCoordinates)
 			}
 		}
-
 		if g.AIEnabled && g.playing == PLAYER2 {
 			go func() {
 				g.AIRunning = true

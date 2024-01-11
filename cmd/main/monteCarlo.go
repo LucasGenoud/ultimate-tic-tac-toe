@@ -186,7 +186,7 @@ func (n *Node) Update(result float64) {
 	n.wins += result
 }
 
-// Get the result of a game for a specific player
+// Get the result of a game for a specific player, used during backpropagation phase
 func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
 	if g.win == playerJustMoved {
 		return 1

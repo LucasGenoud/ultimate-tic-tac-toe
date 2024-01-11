@@ -74,7 +74,12 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 	msgOX := fmt.Sprintf("O: %v | X: %v", g.pointsO, g.pointsX)
 	text.Draw(screen, msgOX, normalText, sWidth/2, sHeight-5, color.White)
 	if g.win != EMPTY {
-		msgWin := fmt.Sprintf("%v wins!", string(g.win))
+		var msgWin = ""
+		if g.win == NONE {
+			msgWin = "Draw!"
+		} else {
+			msgWin = fmt.Sprintf("%v wins!", string(g.win))
+		}
 		text.Draw(screen, msgWin, bigText, 70, 200, color.RGBA{G: 50, B: 200, A: 255})
 	}
 	if g.state == WaitingForGameStart {
