@@ -6,7 +6,7 @@ stages:
 before_script:
   - go mod download
   - apt-get update -y
-  - apt-get install -y libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libxxf86vm-dev xorg-dev libXcursor-devel libXi-devel libXinerama-devel libXrandr-devel
+  - apt-get install -y libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libxxf86vm-dev
 
 build_mac:
   stage: build
