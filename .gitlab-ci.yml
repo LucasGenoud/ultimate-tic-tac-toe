@@ -1,3 +1,5 @@
+image: golang:1.21
+
 stages:
   - test
   - build
@@ -17,7 +19,6 @@ before_script:
 
 build_linux:
   stage: build
-  image: golang:1.21
   script:
     - GOOS=linux GOARCH=amd64 go build -o main_linux cmd/main/*.go
   artifacts:
@@ -26,7 +27,6 @@ build_linux:
 
 build_windows:
   stage: build
-  image: golang:1.21
   script:
     - GOOS=windows GOARCH=amd64 go build -o main_windows.exe cmd/main/*.go
   artifacts:
