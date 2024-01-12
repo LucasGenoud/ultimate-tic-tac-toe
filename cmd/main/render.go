@@ -120,8 +120,6 @@ func (g *Game) displayGameStartMessage(screen *ebiten.Image) {
 			msg = "Press SPACE to start\nPress A to enable AI"
 		}
 		widthX, _ := font.BoundString(normalText, msg)
-		text.Draw(screen, msg, normalText, int(sWidth/2-widthX.Min.X), sHeight/2, color.RGBA{G: 255, B: 255, A: 255})
-
 		text.Draw(screen, msg, normalText, int(WindowWidth/2-widthX.Min.X), WindowHeight/2, color.RGBA{0, 255, 255, 255})
 	}
 }
@@ -160,7 +158,7 @@ func isKeyPressed(key ebiten.Key) bool {
 // displayColoredMessage displays a message with a color that changes over time.
 func displayColoredMessage(key ebiten.Key, screen *ebiten.Image) {
 	msgText, colorText := getMessageAndColor(key)
-	text.Draw(screen, msgText, normalText, sWidth/2, sHeight-30, colorText)
+	text.Draw(screen, msgText, normalText, WindowWidth/2, WindowHeight-30, colorText)
 }
 
 // getMessageAndColor returns the message and color based on the key pressed.
@@ -187,7 +185,7 @@ func getColorChange(key ebiten.Key) uint8 {
 
 func (g *Game) drawAIRunning(screen *ebiten.Image) {
 	if g.AIRunning {
-		msg := "AI is running..."
+		msg := "AI is thinking..."
 		x, y := getCenteredTextPosition(msg)
 		text.Draw(screen, msg, normalText, x, y, color.White)
 	}
@@ -195,7 +193,7 @@ func (g *Game) drawAIRunning(screen *ebiten.Image) {
 
 func getCenteredTextPosition(text string) (int, int) {
 	bound, _ := font.BoundString(normalText, text)
-	x := WindowWidth/2 - (bound.Max.X-bound.Min.X)/2
-	y := WindowHeight/2 - (bound.Max.Y-bound.Min.Y)/2
-	return int(x), int(y)
+	x := WindowWidth/2 - bound.Min.X
+	y := WindowHeight / 2
+	return int(x), y
 }

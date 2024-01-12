@@ -61,7 +61,7 @@ type Game struct {
 	AISimulations    int                                       // number of simulations done by the AI
 	AIWinProbability float64                                   // probability of winning for the AI
 	AIRunning        bool                                      // true if the AI is processing a move
-	AIDifficulty     int64                                     // difficulty level of the AI
+	AIDifficulty     float64                                   // difficulty level of the AI
 	AIEnabled        bool                                      // true if the AI is enabled
 }
 
@@ -117,7 +117,7 @@ func (g *Game) Update() error {
 		}
 		for i := ebiten.Key1; i <= ebiten.Key5; i++ {
 			if inpututil.IsKeyJustPressed(i) {
-				g.AIDifficulty = int64(i - ebiten.Key1 + 1)
+				g.AIDifficulty = float64(i - ebiten.Key1 + 1)
 				break
 			}
 		}
