@@ -30,13 +30,18 @@ func (g *Game) drawGameBoard(screen *ebiten.Image) {
 			}
 		}
 	}
+	gameImage.DrawImage(gameGraphics.MainBoard, nil)
+	screen.DrawImage(gameImage, nil)
+
+	g.displayInformation(screen)
+	g.drawAIRunning(screen)
 }
 func (g *Game) drawMiniBoardWinner(i, j int, screen *ebiten.Image) {
 	gameBoardImageOptions := &ebiten.DrawImageOptions{}
 
 	gameBoardImageOptions.GeoM.Reset()
 	gameBoardImageOptions.GeoM.Scale(3, 3)
-	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+	gameBoardImageOptions.GeoM.Translate(float64(WindowWidth/3*i), float64(WindowWidth/3*j))
 	if g.gameBoard[i][j].Winner == PLAYER1 {
 		screen.DrawImage(gameGraphics.Circle, gameBoardImageOptions)
 	} else {
@@ -55,7 +60,7 @@ func (g *Game) drawMiniBoard(i, j int, screen *ebiten.Image) {
 	}
 
 	gameBoardImageOptions := &ebiten.DrawImageOptions{}
-	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+	gameBoardImageOptions.GeoM.Translate(float64(WindowWidth/3*i), float64(WindowWidth/3*j))
 	if g.isValidPlay(i, j) {
 		gameBoardImageOptions.ColorScale.Scale(0, 1, 0, 1)
 	}
@@ -74,13 +79,13 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 
 func (g *Game) displayFPS(screen *ebiten.Image) {
 	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
-	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
+	text.Draw(screen, msgFPS, normalText, 0, WindowHeight-30, color.White)
 }
 
 func (g *Game) displayAIInfo(screen *ebiten.Image) {
 	if g.AIEnabled {
 		msgAI := fmt.Sprintf("AI simulations: %v \nAI win confidence: %0.2f\nAI difficulty: %v ", g.AISimulations, g.AIWinProbability*100, g.AIDifficulty)
-		text.Draw(screen, msgAI, normalText, 100, sHeight-50, color.White)
+		text.Draw(screen, msgAI, normalText, 100, WindowHeight-50, color.White)
 	}
 }
 
@@ -91,7 +96,7 @@ func (g *Game) displayKeyChangeColor(screen *ebiten.Image) {
 
 func (g *Game) displayScore(screen *ebiten.Image) {
 	msgOX := fmt.Sprintf("O: %v | X: %v", g.pointsO, g.pointsX)
-	text.Draw(screen, msgOX, normalText, sWidth/2, sHeight-5, color.White)
+	text.Draw(screen, msgOX, normalText, WindowWidth/2, WindowHeight-5, color.White)
 }
 
 func (g *Game) displayWinner(screen *ebiten.Image) {
@@ -116,6 +121,8 @@ func (g *Game) displayGameStartMessage(screen *ebiten.Image) {
 		}
 		widthX, _ := font.BoundString(normalText, msg)
 		text.Draw(screen, msg, normalText, int(sWidth/2-widthX.Min.X), sHeight/2, color.RGBA{G: 255, B: 255, A: 255})
+
+		text.Draw(screen, msg, normalText, int(WindowWidth/2-widthX.Min.X), WindowHeight/2, color.RGBA{0, 255, 255, 255})
 	}
 }
 
@@ -127,6 +134,19 @@ func (g *Game) displayCurrentPlayerSymbol(screen *ebiten.Image) {
 
 // keyChangeColor changes the color of the text based on the key pressed.
 func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
+	if inpututil.KeyPressDuration(key) > 1 {
+		var msgText string
+		var colorText color.RGBA
+		colorChange := 255 - (255 / 60 * uint8(inpututil.KeyPressDuration(key)))
+		if key == ebiten.KeyEscape {
+			msgText = "CLOSING..."
+			colorText = color.RGBA{R: 255, G: colorChange, B: colorChange, A: 255}
+		} else if key == ebiten.KeyR {
+			msgText = "RESETING..."
+			colorText = color.RGBA{R: colorChange, G: 255, B: 255, A: 255}
+		}
+		text.Draw(screen, msgText, normalText, WindowWidth/2, WindowHeight-30, colorText)
+	}
 	if isKeyPressed(key) {
 		displayColoredMessage(key, screen)
 	}
@@ -175,7 +195,7 @@ func (g *Game) drawAIRunning(screen *ebiten.Image) {
 
 func getCenteredTextPosition(text string) (int, int) {
 	bound, _ := font.BoundString(normalText, text)
-	x := sWidth/2 - (bound.Max.X-bound.Min.X)/2
-	y := sHeight/2 - (bound.Max.Y-bound.Min.Y)/2
+	x := WindowWidth/2 - (bound.Max.X-bound.Min.X)/2
+	y := WindowHeight/2 - (bound.Max.Y-bound.Min.Y)/2
 	return int(x), int(y)
 }
