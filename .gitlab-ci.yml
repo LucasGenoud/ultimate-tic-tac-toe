@@ -1,6 +1,12 @@
 stages:
+  - test
   - build
 
+test:
+  stage: test
+  script:
+    - apt-get install -y xvfb
+    - xvfb-run go test ./cmd/main
 
 
 before_script:
