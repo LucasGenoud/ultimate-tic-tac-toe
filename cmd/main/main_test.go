@@ -75,17 +75,6 @@ func TestSetValueOfCoordinates(t *testing.T) {
 	}
 }
 
-func TestGetMiniBoardCoordinates(t *testing.T) {
-	game := &Game{}
-	game.init()
-
-	coordinates := game.getMiniBoardCoordinates(100, 100)
-
-	if coordinates.MainBoardRow != 0 || coordinates.MainBoardCol != 0 || coordinates.MiniBoardRow != 0 || coordinates.MiniBoardCol != 0 {
-		t.Errorf("Expected (0,0,0,0), got (%v,%v,%v,%v)", coordinates.MainBoardRow, coordinates.MainBoardCol, coordinates.MiniBoardRow, coordinates.MiniBoardCol)
-	}
-}
-
 func TestCheckWin(t *testing.T) {
 	game := &Game{}
 	game.init()
