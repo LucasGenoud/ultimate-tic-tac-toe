@@ -61,7 +61,7 @@ type Game struct {
 	AISimulations    int
 	AIWinProbability float64
 	AIRunning        bool
-	AIDifficulty     int64
+	AIDifficulty     float64
 	AIEnabled        bool
 }
 
@@ -94,7 +94,7 @@ func (g *Game) Update() error {
 		}
 		for i := ebiten.Key1; i <= ebiten.Key5; i++ {
 			if inpututil.IsKeyJustPressed(i) {
-				g.AIDifficulty = int64(i - ebiten.Key1 + 1)
+				g.AIDifficulty = float64(i - ebiten.Key1 + 1)
 				break
 			}
 		}

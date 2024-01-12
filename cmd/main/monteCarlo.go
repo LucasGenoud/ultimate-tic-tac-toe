@@ -11,7 +11,7 @@ import (
 // Exploration constant for Monte Carlo Tree Search,
 // used in UCT formula, balance between exploration and exploitation
 var (
-	EXPLORATION_CONSTANT = math.Sqrt(2)
+	ExplorationConstant = math.Sqrt(2)
 )
 
 // Clone a game with a deep copy of the state
@@ -82,15 +82,15 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 	rootNode := NewNode(nil, g, rootMove, g.playing)
 	currentTime := time.Now()
-	for time.Since(currentTime).Milliseconds() < g.AIDifficulty*1000 {
+	for float64(time.Since(currentTime).Milliseconds()) < g.AIDifficulty*float64(time.Second.Milliseconds()) {
 		node := rootNode
 		game := g.clone()
-		// Selection and Expansion
+		// Selection
 		for node.HasUntriedMoves() == false && node.HasChildren() && game.state == Playing {
 			node = node.UCTSelectChild()
 			game.makePlay(node.move)
 		}
-		// Expand the node (if possible)
+		// Expansion
 		if node.HasUntriedMoves() && game.state == Playing {
 			move := node.GetUntriedMove()
 			game.makePlay(move)
@@ -109,8 +109,9 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 		}
 	}
 
-	winProbability := rootNode.MostVisitedChild().wins / float64(rootNode.MostVisitedChild().visits)
-	return rootNode.MostVisitedChild().move, rootNode.visits, winProbability
+	mostVisitedChild := rootNode.MostVisitedChild()
+	winProbability := mostVisitedChild.wins / float64(mostVisitedChild.visits)
+	return mostVisitedChild.move, rootNode.visits, winProbability
 }
 
 // Create a new node for the Monte Carlo Tree Search and attach it to its parent
@@ -155,7 +156,7 @@ func (n *Node) UCTSelectChild() *Node {
 
 	for _, child := range n.children {
 		// Formula balancing exploration (of nodes with good win probabilities) and exploration (of nodes with few visits)
-		uctValue := child.wins/float64(child.visits) + EXPLORATION_CONSTANT*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
+		uctValue := child.wins/float64(child.visits) + ExplorationConstant*math.Sqrt(math.Log(float64(n.visits))/float64(child.visits))
 		if uctValue > bestScore {
 			bestScore = uctValue
 			bestChild = child
