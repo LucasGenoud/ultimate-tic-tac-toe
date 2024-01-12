@@ -32,7 +32,7 @@ func (g *Game) drawMiniBoardWinner(i, j int, screen *ebiten.Image) {
 
 	gameBoardImageOptions.GeoM.Reset()
 	gameBoardImageOptions.GeoM.Scale(3, 3)
-	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+	gameBoardImageOptions.GeoM.Translate(float64(WindowWidth/3*i), float64(WindowWidth/3*j))
 	if g.gameBoard[i][j].Winner == PLAYER1 {
 		screen.DrawImage(gameGraphics.Circle, gameBoardImageOptions)
 	} else {
@@ -51,7 +51,7 @@ func (g *Game) drawMiniBoard(i, j int, screen *ebiten.Image) {
 	}
 
 	gameBoardImageOptions := &ebiten.DrawImageOptions{}
-	gameBoardImageOptions.GeoM.Translate(float64(sWidth/3*i), float64(sWidth/3*j))
+	gameBoardImageOptions.GeoM.Translate(float64(WindowWidth/3*i), float64(WindowWidth/3*j))
 	if g.isValidPlay(i, j) {
 		gameBoardImageOptions.ColorScale.Scale(0, 1, 0, 1)
 	}
@@ -62,17 +62,17 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 	mx, my := ebiten.CursorPosition()
 
 	msgFPS := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
-	text.Draw(screen, msgFPS, normalText, 0, sHeight-30, color.White)
+	text.Draw(screen, msgFPS, normalText, 0, WindowHeight-30, color.White)
 
 	if g.AIEnabled {
 		msgAI := fmt.Sprintf("AI simulations: %v \nAI win confidence: %0.2f\nAI difficulty: %v ", g.AISimulations, g.AIWinProbability*100, g.AIDifficulty)
-		text.Draw(screen, msgAI, normalText, 100, sHeight-50, color.White)
+		text.Draw(screen, msgAI, normalText, 100, WindowHeight-50, color.White)
 	}
 
 	keyChangeColor(ebiten.KeyEscape, screen)
 	keyChangeColor(ebiten.KeyR, screen)
 	msgOX := fmt.Sprintf("O: %v | X: %v", g.pointsO, g.pointsX)
-	text.Draw(screen, msgOX, normalText, sWidth/2, sHeight-5, color.White)
+	text.Draw(screen, msgOX, normalText, WindowWidth/2, WindowHeight-5, color.White)
 	if g.win != EMPTY {
 		var msgWin = ""
 		if g.win == NONE {
@@ -93,7 +93,7 @@ func (g *Game) displayInformation(screen *ebiten.Image) {
 		}
 		widthX, _ := font.BoundString(normalText, msg)
 
-		text.Draw(screen, msg, normalText, int(sWidth/2-widthX.Min.X), sHeight/2, color.RGBA{0, 255, 255, 255})
+		text.Draw(screen, msg, normalText, int(WindowWidth/2-widthX.Min.X), WindowHeight/2, color.RGBA{0, 255, 255, 255})
 	}
 	msg := string(g.playing)
 	text.Draw(screen, msg, normalText, mx, my, color.RGBA{G: 255, A: 255})
@@ -110,14 +110,14 @@ func keyChangeColor(key ebiten.Key, screen *ebiten.Image) {
 			msgText = "RESETING..."
 			colorText = color.RGBA{R: colorChange, G: 255, B: 255, A: 255}
 		}
-		text.Draw(screen, msgText, normalText, sWidth/2, sHeight-30, colorText)
+		text.Draw(screen, msgText, normalText, WindowWidth/2, WindowHeight-30, colorText)
 	}
 }
 func (g *Game) drawAIRunning(screen *ebiten.Image) {
 	if g.AIRunning {
 		msg := "AI is running..."
-		x := (sWidth - len(msg)*fontSize) / 2
-		y := sHeight / 2
+		x := (WindowWidth - len(msg)*FontSize) / 2
+		y := WindowHeight / 2
 		text.Draw(screen, msg, normalText, x, y, color.White)
 	}
 }

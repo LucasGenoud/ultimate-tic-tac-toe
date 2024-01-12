@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	sWidth      = 800
-	sHeight     = 900
-	fontSize    = 15
-	bigFontSize = 100
-	dpi         = 72
-	nbPlayer    = 2
+	WindowWidth    = 800
+	WindowHeight   = 900
+	FontSize       = 15
+	BigFontSize    = 100
+	DPI            = 72
+	NbPlayer       = 2
+	BoardRowLength = 3
 )
 
 type GameState int
@@ -43,52 +44,76 @@ const (
 var (
 	normalText   font.Face
 	bigText      font.Face
-	boardImage   *ebiten.Image
 	symbolImage  *ebiten.Image
-	gameImage    = ebiten.NewImage(sWidth, sWidth)
-	gameGraphics = graphics.Init(sWidth)
+	gameImage    = ebiten.NewImage(WindowWidth, WindowWidth)
+	gameGraphics = graphics.Init(WindowWidth)
 )
 
 type Game struct {
-	playing          models.GameSymbol
-	state            GameState
-	gameBoard        [3][3]MiniBoard
-	round            int
-	pointsO          int
-	pointsX          int
-	win              models.GameSymbol
-	lastPlay         graphics.BoardCoord
-	AISimulations    int
-	AIWinProbability float64
-	AIRunning        bool
-	AIDifficulty     int64
-	AIEnabled        bool
+	playing          models.GameSymbol                         // current player as a symbol
+	state            GameState                                 // current state of the game
+	gameBoard        [BoardRowLength][BoardRowLength]MiniBoard // the game board
+	round            int                                       // current round index
+	pointsO          int                                       // points of player 1
+	pointsX          int                                       // points of player 2
+	win              models.GameSymbol                         // winner symbol or EMPTY if the game has not ended yet
+	lastPlay         graphics.BoardCoord                       // last play coordinates
+	AISimulations    int                                       // number of simulations done by the AI
+	AIWinProbability float64                                   // probability of winning for the AI
+	AIRunning        bool                                      // true if the AI is processing a move
+	AIDifficulty     int64                                     // difficulty level of the AI
+	AIEnabled        bool                                      // true if the AI is enabled
 }
 
+// get the symbol of the cell at the given coordinates
 func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
-	return g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol]
+
+	return g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].
+		Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol]
 }
+
+// set the symbol of the cell at the given coordinates
 func (g *Game) setValueOfCoordinates(coordinates graphics.BoardCoord, value models.GameSymbol) {
-	g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol] = value
+	g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].
+		Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol] = value
 }
+
+// get the coordinates of the cell clicked by the player in a mini tic-tac-toe board
 func (g *Game) getMiniBoardCoordinates(mouseX, mouseY int) graphics.BoardCoord {
-	miniTicTacToeSize := sWidth / 3
-	ticTacToeCellSize := miniTicTacToeSize / 3
-	mainRow := mouseX / miniTicTacToeSize
-	mainCol := mouseY / miniTicTacToeSize
+	miniTicTacToeSize := WindowWidth / BoardRowLength           // size of a whole mini tic-tac-toe board
+	miniTicTacToeCellSize := miniTicTacToeSize / BoardRowLength // size of a cell in a mini tic-tac-toe board
+
+	// get clicked cell coordinates
+	// MAIN BOARD
+	mainRow := mouseX / miniTicTacToeSize // the index of the row clicked
+	mainCol := mouseY / miniTicTacToeSize // the index of the column clicked
+
+	// get normalized coordinates
 	normalizedX := mouseX - mainRow*miniTicTacToeSize
 	normalizedY := mouseY - mainCol*miniTicTacToeSize
-	miniRow := normalizedX / ticTacToeCellSize
-	miniCol := normalizedY / ticTacToeCellSize
-	return graphics.BoardCoord{MainBoardRow: mainRow, MainBoardCol: mainCol, MiniBoardRow: miniRow, MiniBoardCol: miniCol}
 
+	// MINI BOARD
+	miniRow := normalizedX / miniTicTacToeCellSize // the index of the row clicked
+	miniCol := normalizedY / miniTicTacToeCellSize // the index of the column clicked
+
+	return graphics.BoardCoord{
+		MainBoardRow: mainRow,
+		MainBoardCol: mainCol,
+		MiniBoardRow: miniRow,
+		MiniBoardCol: miniCol,
+	}
 }
 
+// Update : game life cycle method called at "game tic" and apply the game logic depending on the current state.
+// It is called by the ebiten engine.
 func (g *Game) Update() error {
 	switch g.state {
 	case Init:
+		// called at the beginning of the game
 		g.init()
 	case WaitingForGameStart:
+		// At this point, the player is configuring the game parameters
+		// before starting the game by clicking on the space bar
 		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 			g.state = Playing
 		}
@@ -102,13 +127,17 @@ func (g *Game) Update() error {
 			g.AIEnabled = !g.AIEnabled
 		}
 	case Playing:
+		// At this point, the game is running and a player can make a move
+
+		// if it is the AI's turn, we wait for it to finish
+		// the AI is running in a goroutine
 		if g.AIRunning {
 			return nil
 		}
 
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			mx, my := ebiten.CursorPosition()
-			if mx > sWidth || my > sWidth {
+			if mx > WindowWidth || my > WindowWidth {
 				return nil
 			}
 			boardCoordinates := g.getMiniBoardCoordinates(mx, my)
@@ -132,10 +161,13 @@ func (g *Game) Update() error {
 		}
 
 	case PlayAgain:
+		// At the end of a game, the player can choose to play again (clicking by mouse)
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			g.Load()
 		}
 	}
+	// at any time, the player can reset the game by pressing the R key or quit the game by pressing the escape key
+
 	if inpututil.KeyPressDuration(ebiten.KeyR) == 60 {
 		g.Load()
 		g.ResetPoints()
@@ -146,12 +178,16 @@ func (g *Game) Update() error {
 	return nil
 }
 
+// determine if the move is applicable
 func (g *Game) isValidPlay(row, col int) bool {
 	if g.lastPlay.MiniBoardRow == -1 {
+		// the first move of the game is always valid
 		return true
 	} else if g.gameBoard[g.lastPlay.MiniBoardRow][g.lastPlay.MiniBoardCol].Winner != EMPTY {
+		// when the last move complete a mini-game, the next move can be played anywhere
 		return true
 	} else if row == g.lastPlay.MiniBoardRow && col == g.lastPlay.MiniBoardCol {
+		// the next move must be played in the mini-game corresponding to the last move position
 		return true
 	}
 	return false
@@ -177,26 +213,23 @@ func (g *Game) init() {
 		log.Fatal(err)
 	}
 	normalText, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    fontSize,
-		DPI:     dpi,
+		Size:    FontSize,
+		DPI:     DPI,
 		Hinting: font.HintingFull,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	bigText, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    bigFontSize,
-		DPI:     dpi,
+		Size:    BigFontSize,
+		DPI:     DPI,
 		Hinting: font.HintingFull,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// init game state
-	boardImage = gameGraphics.MainBoard
-
-	re := newRandom().Intn(nbPlayer)
+	re := newRandom().Intn(NbPlayer)
 	if re == 0 {
 		g.playing = PLAYER1
 	} else {
@@ -212,17 +245,22 @@ func (g *Game) init() {
 func (g *Game) Load() {
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			g.gameBoard[i][j] = MiniBoard{Board: [3][3]models.GameSymbol{{EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}}, Winner: EMPTY}
+			g.gameBoard[i][j] = MiniBoard{Board: [3][3]models.GameSymbol{
+				{EMPTY, EMPTY, EMPTY},
+				{EMPTY, EMPTY, EMPTY},
+				{EMPTY, EMPTY, EMPTY}},
+				Winner: EMPTY}
 		}
 	}
 	g.round = 0
 	g.win = EMPTY
 	g.lastPlay = graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
+
+	// by default, the AI is set to the second difficulty level
 	if g.AIDifficulty == 0 {
-		g.AIDifficulty = 5
+		g.AIDifficulty = 2
 	}
 	g.state = WaitingForGameStart
-
 }
 
 func (g *Game) wins(winner models.GameSymbol) {
@@ -295,11 +333,11 @@ func newRandom() *rand.Rand {
 	return rand.New(s1)
 }
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return sWidth, sHeight
+	return WindowWidth, WindowHeight
 }
 func main() {
 	game := &Game{}
-	ebiten.SetWindowSize(sWidth, sHeight)
+	ebiten.SetWindowSize(WindowWidth, WindowHeight)
 	ebiten.SetWindowTitle("TicTacToe")
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
