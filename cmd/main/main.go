@@ -2,7 +2,6 @@ package main
 
 import (
 	"GoTicTacToe/lib/graphics"
-	"GoTicTacToe/lib/models"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -24,8 +23,6 @@ const (
 	BoardRowLength = 3
 )
 
-type GameState int
-
 const (
 	Init GameState = iota
 	Playing
@@ -35,10 +32,10 @@ const (
 
 // enum determining the symbols contained in the game
 const (
-	PLAYER1 models.GameSymbol = 'O'
-	PLAYER2 models.GameSymbol = 'X'
-	EMPTY   models.GameSymbol = ' ' // for empty cell
-	NONE    models.GameSymbol = 0
+	PLAYER1 GameSymbol = 'O'
+	PLAYER2 GameSymbol = 'X'
+	EMPTY   GameSymbol = ' ' // for empty cell
+	NONE    GameSymbol = 0
 )
 
 var (
@@ -49,29 +46,13 @@ var (
 	gameGraphics = graphics.Init(WindowWidth)
 )
 
-type Game struct {
-	playing          models.GameSymbol                         // current player as a symbol
-	state            GameState                                 // current state of the game
-	gameBoard        [BoardRowLength][BoardRowLength]MiniBoard // the game board
-	round            int                                       // current round index
-	pointsO          int                                       // points of player 1
-	pointsX          int                                       // points of player 2
-	win              models.GameSymbol                         // winner symbol or EMPTY if the game has not ended yet
-	lastPlay         graphics.BoardCoord                       // last play coordinates
-	AISimulations    int                                       // number of simulations done by the AI
-	AIWinProbability float64                                   // probability of winning for the AI
-	AIRunning        bool                                      // true if the AI is processing a move
-	AIDifficulty     float64                                   // difficulty level of the AI
-	AIEnabled        bool                                      // true if the AI is enabled
-}
-
 // get the symbol of the cell at the given coordinates
-func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) models.GameSymbol {
+func (g *Game) getValueOfCoordinates(coordinates graphics.BoardCoord) GameSymbol {
 	return g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol]
 }
 
 // set the symbol of the cell at the given coordinates
-func (g *Game) setValueOfCoordinates(coordinates graphics.BoardCoord, value models.GameSymbol) {
+func (g *Game) setValueOfCoordinates(coordinates graphics.BoardCoord, value GameSymbol) {
 	g.gameBoard[coordinates.MainBoardRow][coordinates.MainBoardCol].
 		Board[coordinates.MiniBoardRow][coordinates.MiniBoardCol] = value
 }
@@ -191,7 +172,7 @@ func (g *Game) isValidPlay(row, col int) bool {
 	return false
 }
 
-func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, symbol models.GameSymbol) {
+func (g *Game) DrawSymbol(boardCoord graphics.BoardCoord, symbol GameSymbol) {
 	symbolImage = g.getSymbolImage(symbol)
 
 	xPos, yPos := graphics.GetPositionOfSymbol(boardCoord)
@@ -243,7 +224,7 @@ func (g *Game) init() {
 func (g *Game) Load() {
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			g.gameBoard[i][j] = MiniBoard{Board: [3][3]models.GameSymbol{
+			g.gameBoard[i][j] = MiniBoard{Board: [3][3]GameSymbol{
 				{EMPTY, EMPTY, EMPTY},
 				{EMPTY, EMPTY, EMPTY},
 				{EMPTY, EMPTY, EMPTY}},
@@ -261,7 +242,7 @@ func (g *Game) Load() {
 	g.state = WaitingForGameStart
 }
 
-func (g *Game) wins(winner models.GameSymbol) {
+func (g *Game) wins(winner GameSymbol) {
 	if winner == PLAYER1 {
 		g.win = PLAYER1
 		g.pointsO++
@@ -276,7 +257,7 @@ func (g *Game) wins(winner models.GameSymbol) {
 	}
 }
 
-func (g *Game) CheckWin() models.GameSymbol {
+func (g *Game) CheckWin() GameSymbol {
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
 			g.gameBoard[i][j].CheckWin()
@@ -312,7 +293,7 @@ func (g *Game) CheckWin() models.GameSymbol {
 // winnerOnLine checks if there is a winner on the given line
 // x, y: the starting point of the line
 // dx, dy: delta applied to x and y to get the next point on the line
-func (g *Game) winnerOnLine(x, y, dx, dy int) models.GameSymbol {
+func (g *Game) winnerOnLine(x, y, dx, dy int) GameSymbol {
 	for i := 0; i < 3; i++ {
 		if g.gameBoard[x][y].Winner != g.gameBoard[x+dx*i][y+dy*i].Winner {
 			return EMPTY
@@ -345,7 +326,7 @@ func main() {
 func (g *Game) switchPlayer() {
 	g.playing = g.getOpponents(g.playing)
 }
-func (g *Game) getOpponents(playerJustMoved models.GameSymbol) models.GameSymbol {
+func (g *Game) getOpponents(playerJustMoved GameSymbol) GameSymbol {
 	if playerJustMoved == PLAYER1 {
 		return PLAYER2
 	}
@@ -358,7 +339,7 @@ func (g *Game) makePlay(move graphics.BoardCoord) {
 	g.lastPlay = move
 	g.switchPlayer()
 }
-func (g *Game) getSymbolImage(player models.GameSymbol) *ebiten.Image {
+func (g *Game) getSymbolImage(player GameSymbol) *ebiten.Image {
 	if player == PLAYER1 {
 		return gameGraphics.Circle
 	}

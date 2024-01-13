@@ -2,7 +2,6 @@ package main
 
 import (
 	"GoTicTacToe/lib/graphics"
-	"GoTicTacToe/lib/models"
 	"math"
 	"math/rand"
 	"time"
@@ -51,7 +50,7 @@ type Node struct {
 	visits       int
 	wins         float64
 	untriedMoves []graphics.BoardCoord
-	playerTurn   models.GameSymbol
+	playerTurn   GameSymbol
 }
 
 // Get all the possible moves for the current state of the game
@@ -115,7 +114,7 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 }
 
 // Create a new node for the Monte Carlo Tree Search and attach it to its parent
-func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn models.GameSymbol) *Node {
+func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn GameSymbol) *Node {
 	node := &Node{
 		parent:       parent,
 		state:        state.clone(),
@@ -188,7 +187,7 @@ func (n *Node) Update(result float64) {
 }
 
 // Get the result of a game for a specific player, used during backpropagation phase
-func (g *Game) GetResult(playerJustMoved models.GameSymbol) float64 {
+func (g *Game) GetResult(playerJustMoved GameSymbol) float64 {
 	if g.win == playerJustMoved {
 		return 1
 	} else if g.win == NONE {

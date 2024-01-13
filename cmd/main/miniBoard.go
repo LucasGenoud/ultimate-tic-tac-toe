@@ -1,12 +1,8 @@
 package main
 
-import (
-	"GoTicTacToe/lib/models"
-)
-
 type MiniBoard struct {
-	Board  [3][3]models.GameSymbol
-	Winner models.GameSymbol
+	Board  [3][3]GameSymbol
+	Winner GameSymbol
 }
 
 func (g *MiniBoard) CheckWin() {
@@ -39,7 +35,7 @@ func (g *MiniBoard) CheckWin() {
 	g.Winner = NONE
 }
 
-func (g *MiniBoard) winnerOnLine(x, y, dx, dy int) models.GameSymbol {
+func (g *MiniBoard) winnerOnLine(x, y, dx, dy int) GameSymbol {
 	for i := 0; i < 3; i++ {
 		if g.Board[x][y] != g.Board[x+dx*i][y+dy*i] {
 			return EMPTY
