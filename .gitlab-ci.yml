@@ -8,9 +8,12 @@ stages:
 
 pre-commit:
   stage: pre-commit
-  image: python:3.9
+  image:
+    name: golang:1.21
+    entrypoint: [""]
   before_script:
-    - pip install pre-commit
+    - apt-get update && apt-get install -y python3 python3-pip
+    - pip3 install pre-commit
   script:
     - pre-commit install-hooks
     - pre-commit run --all-files
