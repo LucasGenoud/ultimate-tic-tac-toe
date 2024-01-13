@@ -1,8 +1,19 @@
 image: golang:1.21
 
 stages:
+  - pre-commit
   - test
   - build
+
+
+pre-commit:
+  stage: pre-commit
+  image: python:3.9
+  before_script:
+    - pip install pre-commit
+  script:
+    - pre-commit install-hooks
+    - pre-commit run --all-files
 
 test:
   stage: test
