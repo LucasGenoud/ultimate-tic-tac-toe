@@ -98,6 +98,5 @@ func GetPositionOfSymbol(boardCoord BoardCoord) (float64, float64) {
 	y := symbolSize*boardCoord.MiniBoardCol + miniBoardPadding
 	x += boardCoord.MainBoardRow * (miniBoardSize + mainBoardLineWidth + miniBoardPadding)
 	y += boardCoord.MainBoardCol * (miniBoardSize + mainBoardLineWidth + miniBoardPadding)
-	// TODO: probably need to add some padding and account for the offset depending on in which mini board the symbol is
 	return float64(x), float64(y)
 }
