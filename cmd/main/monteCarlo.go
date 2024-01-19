@@ -83,12 +83,11 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	currentTime := time.Now()
 	for float64(time.Since(currentTime).Milliseconds()) < g.AIDifficulty*float64(time.Second.Milliseconds()) {
 		node := rootNode
-		game := g.clone()
 		// Selection
-		for node.HasUntriedMoves() == false && node.HasChildren() && game.state == Playing {
+		for !node.HasUntriedMoves() && node.HasChildren() && node.state.state == Playing {
 			node = node.UCTSelectChild()
-			game.makePlay(node.move)
 		}
+		game := node.state.clone()
 		// Expansion
 		if node.HasUntriedMoves() && game.state == Playing {
 			move := node.GetUntriedMove()
