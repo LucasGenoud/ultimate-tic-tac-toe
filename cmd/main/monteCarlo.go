@@ -4,6 +4,8 @@ import (
 	"GoTicTacToe/lib/graphics"
 	"math"
 	"math/rand"
+	"runtime"
+	"sync"
 	"time"
 )
 
@@ -51,6 +53,7 @@ type Node struct {
 	wins         float64
 	untriedMoves []graphics.BoardCoord
 	playerTurn   GameSymbol
+	mutex        *sync.Mutex
 }
 
 // Get all the possible moves for the current state of the game
@@ -81,32 +84,53 @@ func (g *Game) MonteCarloMove() (graphics.BoardCoord, int, float64) {
 	rootMove := graphics.BoardCoord{MainBoardRow: -1, MainBoardCol: -1, MiniBoardRow: -1, MiniBoardCol: -1}
 	rootNode := NewNode(nil, g, rootMove, g.playing)
 	currentTime := time.Now()
-	for float64(time.Since(currentTime).Milliseconds()) < g.AIDifficulty*float64(time.Second.Milliseconds()) {
-		node := rootNode
-		// Selection
-		for !node.HasUntriedMoves() && node.HasChildren() && node.state.state == Playing {
-			node = node.UCTSelectChild()
-		}
-		game := node.state.clone()
-		// Expansion
-		if node.HasUntriedMoves() && game.state == Playing {
-			move := node.GetUntriedMove()
-			game.makePlay(move)
-			node = node.AddChild(move, game)
-		}
-		// Simulation
-		for game.state == Playing {
-			possibleMoves := game.getPossibleMoves()
-			randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
-			game.makePlay(randomMove)
-		}
-		// Backpropagation
-		for node != nil {
-			node.Update(game.GetResult(game.getOpponents(node.playerTurn)))
-			node = node.parent
-		}
-	}
+	wg := &sync.WaitGroup{}
 
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func(rootNode *Node) {
+			for float64(time.Since(currentTime).Milliseconds()) < g.AIDifficulty*float64(time.Second.Milliseconds()) {
+				node := rootNode
+				node.mutex.Lock()
+				// Selection
+				for !node.HasUntriedMoves() && node.HasChildren() && node.state.state == Playing {
+					newNode := node.UCTSelectChild()
+					newNode.mutex.Lock()
+					node.mutex.Unlock()
+					node = newNode
+				}
+				node.mutex.Unlock()
+
+				game := node.state.clone()
+				// Expansion
+				node.mutex.Lock()
+				if node.HasUntriedMoves() && game.state == Playing {
+					move := node.GetRandomUntestedMove()
+					game.makePlay(move)
+					newNode := node.AddChild(move, game)
+					node.mutex.Unlock()
+					node = newNode
+				} else {
+					node.mutex.Unlock()
+				}
+				// Simulation
+				for game.state == Playing {
+					possibleMoves := game.getPossibleMoves()
+					randomMove := possibleMoves[rand.Intn(len(possibleMoves))]
+					game.makePlay(randomMove)
+				}
+				// Backpropagation
+				for node != nil {
+					node.Update(game.GetResult(game.getOpponents(node.playerTurn)))
+					node = node.parent
+
+				}
+			}
+			wg.Done()
+		}(rootNode)
+
+	}
+	wg.Wait()
 	mostVisitedChild := rootNode.MostVisitedChild()
 	winProbability := mostVisitedChild.wins / float64(mostVisitedChild.visits)
 	return mostVisitedChild.move, rootNode.visits, winProbability
@@ -123,6 +147,7 @@ func NewNode(parent *Node, state *Game, move graphics.BoardCoord, playerTurn Gam
 		wins:         0,
 		untriedMoves: state.getPossibleMoves(),
 		playerTurn:   playerTurn,
+		mutex:        &sync.Mutex{},
 	}
 	return node
 }
@@ -165,7 +190,7 @@ func (n *Node) UCTSelectChild() *Node {
 }
 
 // Get a list of all the moves not yet tried for a spceific node
-func (n *Node) GetUntriedMove() graphics.BoardCoord {
+func (n *Node) GetRandomUntestedMove() graphics.BoardCoord {
 	index := rand.Intn(len(n.untriedMoves))
 	move := n.untriedMoves[index]
 	n.untriedMoves = append(n.untriedMoves[:index], n.untriedMoves[index+1:]...)
@@ -181,8 +206,10 @@ func (n *Node) AddChild(move graphics.BoardCoord, state *Game) *Node {
 
 // Update the number of visits and wins for a node, used during backpropagation phase
 func (n *Node) Update(result float64) {
+	n.mutex.Lock()
 	n.visits++
 	n.wins += result
+	n.mutex.Unlock()
 }
 
 // Get the result of a game for a specific player, used during backpropagation phase
