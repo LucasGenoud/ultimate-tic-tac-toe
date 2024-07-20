@@ -93,7 +93,9 @@ func (g *Game) Update() error {
 	case WaitingForGameStart:
 		// At this point, the player is configuring the game parameters
 		// before starting the game by clicking on the space bar
-		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		var touchIDs []ebiten.TouchID
+		inpututil.AppendJustPressedTouchIDs(touchIDs)
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) || len(touchIDs) > 0 {
 			g.state = Playing
 		}
 		for i := ebiten.Key1; i <= ebiten.Key5; i++ {
@@ -113,13 +115,20 @@ func (g *Game) Update() error {
 		if g.AIRunning {
 			return nil
 		}
+		var touchIDs []ebiten.TouchID
+		inpututil.AppendJustPressedTouchIDs(touchIDs)
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || len(touchIDs) > 0 {
+			var x, y int
+			if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+				x, y = ebiten.CursorPosition()
+			} else {
+				x, y = ebiten.TouchPosition(touchIDs[0])
+			}
 
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			mx, my := ebiten.CursorPosition()
-			if mx > WindowWidth || my > WindowWidth {
+			if x > WindowWidth || y > WindowWidth {
 				return nil
 			}
-			boardCoordinates := g.getMiniBoardCoordinates(mx, my)
+			boardCoordinates := g.getMiniBoardCoordinates(x, y)
 
 			if !g.isValidPlay(boardCoordinates.MainBoardRow, boardCoordinates.MainBoardCol) {
 				return nil
@@ -140,8 +149,11 @@ func (g *Game) Update() error {
 		}
 
 	case PlayAgain:
+
 		// At the end of a game, the player can choose to play again (clicking by mouse)
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		var touchIDs []ebiten.TouchID
+		inpututil.AppendJustPressedTouchIDs(touchIDs)
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || len(touchIDs) > 0 {
 			g.Load()
 		}
 	}
