@@ -53,14 +53,38 @@ jobs:
       - name: Build for Windows
         run: GOOS=windows GOARCH=amd64 go build -o main_windows.exe cmd/main/*.go
 
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: main_linux
-          path: main_linux
+      - name: Build WebAssembly
+        run: GOOS=js GOARCH=wasm go build -o main.wasm cmd/main/*.go
 
-      - name: Upload Windows artifact
+      - name: Copy wasm_exec.js
+        run: cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
+
+      - name: Copy existing index.html
+        run: cp wasm/index.html .
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: main_windows
-          path: main_windows.exe
+          name: builds
+          path: |
+            main_linux
+            main_windows.exe
+            main.wasm
+            wasm_exec.js
+            index.html
+
+  deploy-gh-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: builds
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
