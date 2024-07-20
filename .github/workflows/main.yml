@@ -2,9 +2,10 @@ name: Go CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, web-assembly-tests ]
   pull_request:
     branches: [ main ]
+
 permissions:
   contents: write
 
@@ -52,8 +53,20 @@ jobs:
       - name: Build for Linux
         run: GOOS=linux GOARCH=amd64 go build -o main_linux cmd/main/*.go
 
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-build
+          path: main_linux
+
       - name: Build for Windows
         run: GOOS=windows GOARCH=amd64 go build -o main_windows.exe cmd/main/*.go
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: main_windows.exe
 
       - name: Build WebAssembly
         run: GOOS=js GOARCH=wasm go build -o main.wasm cmd/main/*.go
@@ -64,13 +77,11 @@ jobs:
       - name: Copy existing index.html
         run: cp wasm/index.html .
 
-      - name: Upload artifacts
+      - name: Upload WebAssembly artifact
         uses: actions/upload-artifact@v3
         with:
-          name: builds
+          name: wasm-build
           path: |
-            main_linux
-            main_windows.exe
             main.wasm
             wasm_exec.js
             index.html
@@ -81,12 +92,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download artifacts
+      - name: Download WebAssembly artifact
         uses: actions/download-artifact@v3
         with:
-          name: builds
+          name: wasm-build
+          path: wasm-build
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./wasm-build
