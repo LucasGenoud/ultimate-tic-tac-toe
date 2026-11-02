@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"GoTicTacToe/lib/ai"
 	"GoTicTacToe/lib/engine"
 	"GoTicTacToe/lib/graphics"
 )
@@ -21,32 +22,6 @@ const (
 	controlRadius = 10.0
 )
 
-var newGameButton = rect{x: boardX + boardSize - 132, y: footerY - 24, w: 132, h: 48}
-
-// menuLayout positions the controls of the new game card.
-type menuLayout struct {
-	card      rect
-	opponents [2]rect
-	levels    [maxLevel]rect
-	start     rect
-}
-
-func newMenuLayout() menuLayout {
-	card := rect{x: viewWidth/2 - 240, y: boardY + boardSize/2 - 190, w: 480, h: 380}
-	inner := card.w - 80
-	m := menuLayout{card: card, start: rect{x: card.x + 40, y: card.y + 292, w: inner, h: 52}}
-	const gap = 10.0
-	for i := range m.opponents {
-		w := (inner - gap) / 2
-		m.opponents[i] = rect{x: card.x + 40 + float64(i)*(w+gap), y: card.y + 112, w: w, h: 46}
-	}
-	for i := range m.levels {
-		w := (inner - gap*(maxLevel-1)) / maxLevel
-		m.levels[i] = rect{x: card.x + 40 + float64(i)*(w+gap), y: card.y + 210, w: w, h: 46}
-	}
-	return m
-}
-
 func resultCard() rect {
 	return rect{x: viewWidth/2 - 200, y: boardY + boardSize/2 - 100, w: 400, h: 200}
 }
@@ -57,14 +32,16 @@ func resultCardButton() rect {
 }
 
 func (a *App) Draw(screen *ebiten.Image) {
-	screen.Fill(colorBackground)
+	p := a.pal()
+	screen.Fill(p.background)
 	c := graphics.NewCanvas(screen, a.viewport)
 	a.drawHeader(c)
 	a.drawBoard(c)
+	a.drawStats(c)
 	a.drawFooter(c)
-	for _, p := range a.confetti {
-		alpha := clamp01((confettiLifetime - p.age) / 0.6)
-		c.FillQuad(p.x, p.y, p.w, p.h, p.angle, graphics.Fade(p.clr, alpha))
+	for _, piece := range a.confetti {
+		alpha := clamp01((confettiLifetime - piece.age) / 0.6)
+		c.FillQuad(piece.x, piece.y, piece.w, piece.h, piece.angle, graphics.Fade(piece.clr, alpha))
 	}
 	switch a.phase {
 	case phaseMenu:
@@ -72,30 +49,34 @@ func (a *App) Draw(screen *ebiten.Image) {
 	case phaseOver:
 		a.drawResultCard(c)
 	}
+	if a.showRules {
+		a.drawRules(c)
+	}
 }
 
 func (a *App) drawHeader(c *graphics.Canvas) {
-	c.Text("Ultimate Tic-Tac-Toe", boardX, headerY-16, 30, graphics.Medium, graphics.AlignStart, colorInk)
+	p := a.pal()
+	c.Text("Ultimate Tic-Tac-Toe", boardX, titleY, 30, graphics.Medium, graphics.AlignStart, p.ink)
 
 	status, symbol := a.status()
 	x := boardX
 	if symbol != engine.Nobody {
-		drawSymbol(c, symbol, x+9, headerY+24, 8, 3, 1, playerColor(symbol))
+		a.drawSymbol(c, symbol, x+9, statusY, 8, 3, 1, p.player(symbol))
 		x += 28
 	}
-	c.Text(status, x, headerY+24, 18, graphics.Regular, graphics.AlignStart, colorMuted)
+	c.Text(status, x, statusY, 18, graphics.Regular, graphics.AlignStart, p.muted)
 
 	labels := [3]string{engine.O: "Player O", engine.X: "Player X"}
-	if a.vsComputer {
+	if a.settings.VsComputer {
 		labels[human], labels[computer] = "You", "Computer"
 	}
 	right := boardX + boardSize
-	for _, p := range []engine.Player{engine.X, engine.O} {
-		score := fmt.Sprint(a.score[p])
-		left := right - math.Max(graphics.TextWidth(labels[p], 14, graphics.Regular), 36+graphics.TextWidth(score, 30, graphics.Medium))
-		drawSymbol(c, p, left+11, headerY-14, 10, 4, 1, playerColor(p))
-		c.Text(score, right, headerY-16, 30, graphics.Medium, graphics.AlignEnd, colorInk)
-		c.Text(labels[p], right, headerY+24, 14, graphics.Regular, graphics.AlignEnd, colorMuted)
+	for _, pl := range []engine.Player{engine.X, engine.O} {
+		score := fmt.Sprint(a.settings.Score[pl])
+		left := right - math.Max(graphics.TextWidth(labels[pl], 14, graphics.Regular), 36+graphics.TextWidth(score, 30, graphics.Medium))
+		a.drawSymbol(c, pl, left+11, titleY, 10, 4, 1, p.player(pl))
+		c.Text(score, right, titleY, 30, graphics.Medium, graphics.AlignEnd, p.ink)
+		c.Text(labels[pl], right, statusY, 14, graphics.Regular, graphics.AlignEnd, p.muted)
 		right = left - 36
 	}
 }
@@ -103,10 +84,13 @@ func (a *App) drawHeader(c *graphics.Canvas) {
 // status describes the state of the game, with the symbol it is about.
 func (a *App) status() (string, engine.Player) {
 	turn := a.game.Turn()
-	switch a.phase {
-	case phaseMenu:
+	dots := strings.Repeat(".", int(a.clock*3)%4)
+	switch {
+	case ebiten.IsKeyPressed(ebiten.KeyR):
+		return "Keep holding R to reset the score", engine.Nobody
+	case a.phase == phaseMenu:
 		return "Set up a new game", engine.Nobody
-	case phaseOver:
+	case a.phase == phaseOver:
 		winner := a.game.Winner()
 		switch a.outcome() {
 		case outcomeDraw:
@@ -114,16 +98,19 @@ func (a *App) status() (string, engine.Player) {
 		case outcomeLoss:
 			return "The computer won", winner
 		}
-		if a.vsComputer {
+		if a.settings.VsComputer {
 			return "You won", winner
 		}
 		return winner.String() + " won", winner
-	}
-	if a.computerToPlay() {
-		return "Computer is thinking" + strings.Repeat(".", int(a.clock*3)%4), turn
+	case a.computerToPlay():
+		return "Computer is thinking" + dots, turn
+	case a.request != nil:
+		return "Looking for a good move" + dots, turn
+	case a.hint != engine.NoMove:
+		return "Hint: the outlined cell, " + strings.ToLower(winChance(a.hintResult)) + " win chance", turn
 	}
 	msg := turn.String() + " to play"
-	if a.vsComputer {
+	if a.settings.VsComputer {
 		msg = "Your turn"
 	}
 	playable := 0
@@ -139,28 +126,37 @@ func (a *App) status() (string, engine.Player) {
 }
 
 func (a *App) drawBoard(c *graphics.Canvas) {
+	p := a.pal()
 	ended := a.phase == phaseOver
 	if ended && a.outcome() == outcomeLoss {
 		c.Translate(shakeOffset(a.clock-a.endedAt-outcomeDelay), 0)
 		defer c.Translate(0, 0)
 	}
 
-	c.FillRect(boardX, boardY+4, boardSize, boardSize, cardRadius+2, colorShadow)
-	c.FillRect(boardX, boardY, boardSize, boardSize, cardRadius, colorSurface)
-	c.StrokeRect(boardX, boardY, boardSize, boardSize, cardRadius, 1, colorBorder)
+	c.FillRect(boardX, boardY+4, boardSize, boardSize, cardRadius+2, p.shadow)
+	c.FillRect(boardX, boardY, boardSize, boardSize, cardRadius, p.surface)
+	c.StrokeRect(boardX, boardY, boardSize, boardSize, cardRadius, 1, p.border)
 
 	for b := range 9 {
 		a.drawMiniBoard(c, b)
 	}
 	for i := 1; i < 3; i++ {
-		at := gridX + float64(i)*bigCell
-		c.Line(at, gridY+8, at, gridY+gridSize-8, 5, 1, colorGridMajor)
-		c.Line(gridX+8, at-gridX+gridY, gridX+gridSize-8, at-gridX+gridY, 5, 1, colorGridMajor)
+		at := float64(i) * bigCell
+		c.Line(gridX+at, gridY+8, gridX+at, gridY+gridSize-8, 5, 1, p.gridMajor)
+		c.Line(gridX+8, gridY+at, gridX+gridSize-8, gridY+at, 5, 1, p.gridMajor)
 	}
 
+	turn := a.game.Turn()
+	if a.hint != engine.NoMove {
+		r := cellRect(a.hint)
+		pulse := 0.55 + 0.35*math.Sin(a.clock*5)
+		c.StrokeRect(r.x+4, r.y+4, r.w-8, r.h-8, 10, 3, graphics.Fade(p.player(turn), pulse))
+		x, y := r.center()
+		a.drawSymbol(c, turn, x, y, pieceRadius, pieceWidth, 1, graphics.Fade(p.player(turn), 0.3))
+	}
 	if m := a.hoveredMove(); m != engine.NoMove {
 		x, y := cellRect(m).center()
-		drawSymbol(c, a.game.Turn(), x, y, pieceRadius, pieceWidth, 1, graphics.Fade(playerColor(a.game.Turn()), 0.22))
+		a.drawSymbol(c, turn, x, y, pieceRadius, pieceWidth, 1, graphics.Fade(p.player(turn), 0.22))
 	}
 
 	if !ended {
@@ -168,31 +164,32 @@ func (a *App) drawBoard(c *graphics.Canvas) {
 	}
 	if a.outcome() != outcomeWin {
 		fade := easeOutCubic(progress(a.clock, a.endedAt, outcomeDelay, fadeDuration))
-		c.FillRect(gridX, gridY, gridSize, gridSize, 0, graphics.Fade(colorSurface, 0.6*fade))
+		c.FillRect(gridX, gridY, gridSize, gridSize, 0, graphics.Fade(p.surface, 0.6*fade))
 	}
 	if line, ok := a.game.WinningLine(); ok {
 		x0, y0 := bigCellCenter(line[0])
 		x1, y1 := bigCellCenter(line[2])
 		x0, y0, x1, y1 = extend(x0, y0, x1, y1, bigCell*0.38)
 		t := easeInOutCubic(progress(a.clock, a.endedAt, endLineDelay, endLineDuration))
-		c.Line(x0, y0, x1, y1, 24, t, colorSurface)
-		c.Line(x0, y0, x1, y1, 14, t, playerColor(a.game.Winner()))
+		c.Line(x0, y0, x1, y1, 24, t, p.surface)
+		c.Line(x0, y0, x1, y1, 14, t, p.player(a.game.Winner()))
 	}
 }
 
 func (a *App) drawMiniBoard(c *graphics.Canvas, board int) {
+	p := a.pal()
 	r := miniBoardRect(board)
 	if h := a.highlight[board]; h > 0 {
-		c.FillRect(r.x-8, r.y-8, r.w+16, r.h+16, controlRadius, graphics.Fade(playerColor(a.game.Turn()), 0.09*h))
+		c.FillRect(r.x-8, r.y-8, r.w+16, r.h+16, controlRadius, graphics.Fade(p.player(a.game.Turn()), 0.1*h))
 	}
 	if last := a.game.LastMove(); last != engine.NoMove && last.Board() == board && a.phase == phasePlaying {
 		cell := cellRect(last)
-		c.FillRect(cell.x+5, cell.y+5, cell.w-10, cell.h-10, 8, graphics.Fade(colorInk, 0.05))
+		c.FillRect(cell.x+5, cell.y+5, cell.w-10, cell.h-10, 8, graphics.Fade(p.ink, 0.06))
 	}
 	for i := 1; i < 3; i++ {
 		at := float64(i) * smallCell
-		c.Line(r.x+at, r.y+4, r.x+at, r.y+r.h-4, 2, 1, colorGridMinor)
-		c.Line(r.x+4, r.y+at, r.x+r.w-4, r.y+at, 2, 1, colorGridMinor)
+		c.Line(r.x+at, r.y+4, r.x+at, r.y+r.h-4, 2, 1, p.gridMinor)
+		c.Line(r.x+4, r.y+at, r.x+r.w-4, r.y+at, 2, 1, p.gridMinor)
 	}
 
 	winner := a.game.BoardWinner(board)
@@ -207,10 +204,10 @@ func (a *App) drawMiniBoard(c *graphics.Canvas, board int) {
 
 	for cell := range 9 {
 		m := engine.MoveAt(board, cell)
-		if p := a.game.Cell(m); p != engine.Nobody {
+		if pl := a.game.Cell(m); pl != engine.Nobody {
 			x, y := cellRect(m).center()
 			t := easeOutCubic(progress(a.clock, a.placedAt[m], 0, pieceDuration))
-			drawSymbol(c, p, x, y, pieceRadius, pieceWidth, t, graphics.Fade(playerColor(p), pieceAlpha))
+			a.drawSymbol(c, pl, x, y, pieceRadius, pieceWidth, t, graphics.Fade(p.player(pl), pieceAlpha))
 		}
 	}
 
@@ -219,108 +216,130 @@ func (a *App) drawMiniBoard(c *graphics.Canvas, board int) {
 		x1, y1 := cellRect(engine.MoveAt(board, line[2])).center()
 		x0, y0, x1, y1 = extend(x0, y0, x1, y1, smallCell*0.32)
 		t := easeInOutCubic(progress(a.clock, a.decidedAt[board], boardDelay, strikeDuration))
-		c.Line(x0, y0, x1, y1, 5, t, graphics.Fade(playerColor(winner), pieceAlpha))
+		c.Line(x0, y0, x1, y1, 5, t, graphics.Fade(p.player(winner), pieceAlpha))
 
 		cx, cy := r.center()
 		t = easeOutCubic(progress(a.clock, a.decidedAt[board], symbolStart, bigSymbolDuration))
-		drawSymbol(c, winner, cx, cy, bigRadius, bigWidth, t, playerColor(winner))
+		a.drawSymbol(c, winner, cx, cy, bigRadius, bigWidth, t, p.player(winner))
 	}
+}
+
+// drawStats shows what the computer found: live while it thinks, then for its last move.
+func (a *App) drawStats(c *graphics.Canvas) {
+	p := a.pal()
+	stat := func(x float64, label, value string) {
+		c.Text(label, x, statsLabelY, 13, graphics.Regular, graphics.AlignStart, p.muted)
+		c.Text(value, x, statsValueY, 20, graphics.Medium, graphics.AlignStart, p.ink)
+	}
+	if !a.settings.VsComputer {
+		stat(boardX, "Mode", "Two players on one device")
+		return
+	}
+
+	res := a.lastSearch
+	thinking := a.request != nil && a.request.kind == requestMove
+	if thinking {
+		res = a.live
+	}
+	simulations := "-"
+	if res.Simulations > 0 {
+		simulations = thousands(res.Simulations)
+	}
+	threads := fmt.Sprintf("%d of %d", a.threads(), a.searcher.MaxThreads())
+	if a.searcher.Fallback() {
+		threads = "1 (no workers)"
+	}
+	stat(boardX, "Level", a.level().name)
+	stat(boardX+170, "Simulations", simulations)
+	stat(boardX+360, "Computer win chance", winChance(res))
+	stat(boardX+560, "Threads", threads)
+
+	if thinking {
+		limits := a.request.limits
+		t := (a.clock - a.request.started) / limits.Duration.Seconds()
+		if limits.Simulations > 0 {
+			t = float64(a.live.Simulations) / float64(limits.Simulations)
+		}
+		c.Line(boardX, barY, boardX+boardSize, barY, 3, 1, p.border)
+		c.Line(boardX, barY, boardX+boardSize, barY, 3, clamp01(t), p.ink)
+	}
+}
+
+// winChance formats the estimated chance of winning of a search result.
+func winChance(r ai.Result) string {
+	switch {
+	case r.Threads == 0:
+		return "-"
+	case r.Proof == ai.Win:
+		return "Forced win"
+	case r.Proof == ai.Loss:
+		return "Forced loss"
+	}
+	return fmt.Sprintf("%.0f%%", r.WinRate*100)
 }
 
 func (a *App) drawFooter(c *graphics.Canvas) {
-	line1, line2 := "Two players on one device", "Hold R to reset the score"
-	if a.vsComputer {
-		line1 = fmt.Sprintf("Computer level %d, %d s per move", a.level, a.level)
-		if s := a.lastSearch; s.Workers > 0 {
-			line2 = fmt.Sprintf("Last move: %s simulations on %d threads, %.0f%% win estimate",
-				thousands(s.Simulations), s.Workers, s.WinRate*100)
-		}
+	if a.phase == phaseMenu {
+		return
 	}
-	if held := ebiten.IsKeyPressed(ebiten.KeyR); held {
-		line2 = "Keep holding R to reset the score"
-	}
-	c.Text(line1, boardX, footerY-11, 16, graphics.Regular, graphics.AlignStart, colorInk)
-	c.Text(line2, boardX, footerY+13, 14, graphics.Regular, graphics.AlignStart, colorMuted)
-
-	if a.phase != phaseMenu {
-		a.drawButton(c, newGameButton, "New game", false, true)
-	}
-}
-
-func (a *App) drawMenu(c *graphics.Canvas) {
-	c.FillRect(boardX, boardY, boardSize, boardSize, cardRadius, graphics.Fade(colorBackground, 0.8))
-	m := newMenuLayout()
-	drawCard(c, m.card, 1)
-	x := m.card.x + 40
-	c.Text("New game", x, m.card.y+52, 26, graphics.Medium, graphics.AlignStart, colorInk)
-
-	c.Text("Opponent", x, m.opponents[0].y-20, 15, graphics.Regular, graphics.AlignStart, colorMuted)
-	a.drawButton(c, m.opponents[0], "Computer", a.vsComputer, true)
-	a.drawButton(c, m.opponents[1], "Friend", !a.vsComputer, true)
-
-	c.Text("Computer level (seconds per move)", x, m.levels[0].y-20, 15, graphics.Regular, graphics.AlignStart, colorMuted)
-	for i, r := range m.levels {
-		a.drawButton(c, r, fmt.Sprint(i+1), a.vsComputer && a.level == i+1, a.vsComputer)
-	}
-
-	a.drawButton(c, m.start, "Start", true, true)
-	c.Text("Space to start, A to switch opponent, 1 to 5 to set the level",
-		viewWidth/2, m.card.y+m.card.h+30, 14, graphics.Regular, graphics.AlignCenter, colorMuted)
+	a.drawButton(c, hintButton, "Hint", false, a.canHint())
+	a.drawButton(c, undoButton, "Undo", false, a.canUndo())
+	a.drawButton(c, newGameButton, "New game", false, true)
 }
 
 func (a *App) drawResultCard(c *graphics.Canvas) {
+	p := a.pal()
 	t := easeOutCubic(progress(a.clock, a.endedAt, cardDelay, cardDuration))
 	if t == 0 {
 		return
 	}
 	r := resultCard()
 	r.y += (1 - t) * 24
-	drawCard(c, r, t)
+	a.drawCard(c, r, t)
 
 	title := map[outcome]string{outcomeWin: "You won", outcomeLoss: "You lost", outcomeDraw: "Draw"}[a.outcome()]
-	if !a.vsComputer && a.outcome() == outcomeWin {
+	if !a.settings.VsComputer && a.outcome() == outcomeWin {
 		title = a.game.Winner().String() + " won"
 	}
-	c.Text(title, viewWidth/2, r.y+50, 30, graphics.Medium, graphics.AlignCenter, graphics.Fade(colorInk, t))
-	score := fmt.Sprintf("O %d  ·  X %d", a.score[engine.O], a.score[engine.X])
-	c.Text(score, viewWidth/2, r.y+88, 16, graphics.Regular, graphics.AlignCenter, graphics.Fade(colorMuted, t))
-
-	button := resultCardButton()
-	button.y = r.y + r.h - 76
+	c.Text(title, viewWidth/2, r.y+50, 30, graphics.Medium, graphics.AlignCenter, graphics.Fade(p.ink, t))
+	score := fmt.Sprintf("O %d  ·  X %d", a.settings.Score[engine.O], a.settings.Score[engine.X])
+	c.Text(score, viewWidth/2, r.y+88, 16, graphics.Regular, graphics.AlignCenter, graphics.Fade(p.muted, t))
 	if t == 1 {
-		a.drawButton(c, button, "Play again", true, true)
+		a.drawButton(c, resultCardButton(), "Play again", true, true)
 	}
 }
 
-func drawCard(c *graphics.Canvas, r rect, alpha float64) {
-	c.FillRect(r.x, r.y+6, r.w, r.h, cardRadius+2, graphics.Fade(colorShadow, alpha*1.5))
-	c.FillRect(r.x, r.y, r.w, r.h, cardRadius, graphics.Fade(colorSurface, alpha))
-	c.StrokeRect(r.x, r.y, r.w, r.h, cardRadius, 1, graphics.Fade(colorBorder, alpha))
+func (a *App) drawCard(c *graphics.Canvas, r rect, alpha float64) {
+	p := a.pal()
+	c.FillRect(r.x, r.y+6, r.w, r.h, cardRadius+2, graphics.Fade(p.shadow, alpha*1.5))
+	c.FillRect(r.x, r.y, r.w, r.h, cardRadius, graphics.Fade(p.surface, alpha))
+	c.StrokeRect(r.x, r.y, r.w, r.h, cardRadius, 1, graphics.Fade(p.border, alpha))
 }
 
 // drawButton draws a filled button when selected, an outlined one otherwise.
 func (a *App) drawButton(c *graphics.Canvas, r rect, label string, selected, enabled bool) {
+	p := a.pal()
 	hovered := enabled && r.contains(a.pointerX, a.pointerY)
-	fill, border, ink := colorSurface, colorBorder, colorInk
+	fill, border, ink := p.surface, p.border, p.ink
 	switch {
 	case !enabled:
-		ink = graphics.Fade(colorMuted, 0.5)
+		ink = graphics.Fade(p.muted, 0.5)
 	case selected:
-		fill, border, ink = colorInk, colorInk, colorSurface
+		fill, border, ink = p.ink, p.ink, p.surface
 		if hovered {
-			fill = graphics.Mix(colorInk, colorSurface, 0.15)
+			fill = graphics.Mix(p.ink, p.surface, 0.15)
 		}
 	case hovered:
-		fill, border = colorBackground, colorGridMinor
+		fill, border = p.background, p.gridMinor
 	}
 	c.FillRect(r.x, r.y, r.w, r.h, controlRadius, fill)
 	c.StrokeRect(r.x, r.y, r.w, r.h, controlRadius, 1, border)
 	x, y := r.center()
-	c.Text(label, x, y, 16, graphics.Medium, graphics.AlignCenter, ink)
+	c.Text(label, x, y, 15, graphics.Medium, graphics.AlignCenter, ink)
 }
 
-func drawSymbol(c *graphics.Canvas, p engine.Player, x, y, radius, width, progress float64, clr color.Color) {
-	if p == engine.O {
+func (a *App) drawSymbol(c *graphics.Canvas, pl engine.Player, x, y, radius, width, progress float64, clr color.Color) {
+	if pl == engine.O {
 		c.Nought(x, y, radius, width, progress, clr)
 	} else {
 		c.Cross(x, y, radius*1.1, width, progress, clr)

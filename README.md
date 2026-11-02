@@ -9,9 +9,11 @@ Realised during the course "Programmation élégante en GO" from HEIA-FR. Initia
 ## Playing
 
 - Click a cell inside a highlighted board. Your move decides which board your opponent plays in next.
-- Win three small boards in a row to win the game.
-- Play against the computer (levels 1 to 5 set how many seconds it thinks per move) or against a friend.
-- Hold `R` to reset the score, hold `Esc` to quit (desktop only).
+- Win three small boards in a row to win the game. "How to play" in the menu explains the rules.
+- Play against the computer, from Beginner to Expert, or against a friend, and choose who moves first.
+- While playing: `H` or Hint suggests a move, `U`, `Ctrl+Z` or Undo takes your last move back, `N` opens the menu.
+- Anywhere: `M` toggles sound, `D` toggles the dark theme, hold `R` to reset the score, hold `Esc` to quit (desktop only).
+- Settings and score are saved: in the user configuration directory on the desktop, in local storage on the web.
 
 ## Building
 
@@ -25,10 +27,16 @@ make serve   # web build served on http://localhost:8080
 
 ## How the AI works
 
-The computer runs a Monte Carlo tree search on every CPU core at once (root parallelisation):
-each core grows its own tree for the allotted time, then the statistics of the candidate moves are merged.
-On the desktop each tree runs in a goroutine. In the browser, where WebAssembly runs Go on a single thread,
-the trees run in one Web Worker per core (`cmd/aiworker`, `wasm/ai-pool.js`), which also keeps the page responsive while it thinks.
+The computer runs a Monte Carlo tree search on several threads at once (root parallelisation):
+each thread grows its own tree, then the statistics of the candidate moves are merged.
+The number of threads can be set in the menu. On the desktop each tree runs in a goroutine. In the browser,
+where WebAssembly runs Go on a single thread, the trees run in Web Workers (`cmd/aiworker`, `wasm/ai-pool.js`),
+which also keeps the page responsive; without Web Workers the search runs on the page, on one thread.
+
+- Beginner to Medium stop after a fixed number of simulations; Hard and Expert think for a fixed time.
+- Trees are kept from one move to the next, and Hard and Expert keep thinking during your turn.
+- Positions won or lost by force are proven, so the computer never misses a winning move and shows a forced result.
+- The statistics of the search (simulations, the computer's estimated chance of winning) update live below the board.
 
 ## Project layout
 

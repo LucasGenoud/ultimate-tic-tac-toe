@@ -153,6 +153,15 @@ func (c *Canvas) FillQuad(cx, cy, w, h, angle float64, clr color.Color) {
 	c.fill(&p, clr)
 }
 
+// FillCircle fills a disc of radius r centered on (cx, cy).
+func (c *Canvas) FillCircle(cx, cy, r float64, clr color.Color) {
+	x, y := c.pt(cx, cy)
+	var p vector.Path
+	p.Arc(x, y, c.len(r), 0, 2*math.Pi, vector.Clockwise)
+	p.Close()
+	c.fill(&p, clr)
+}
+
 // Nought draws a circle of radius r centered on (cx, cy), traced clockwise from the top up to progress.
 func (c *Canvas) Nought(cx, cy, r, width, progress float64, clr color.Color) {
 	if progress <= 0 {

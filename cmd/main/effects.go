@@ -68,7 +68,7 @@ type confetto struct {
 // confetti is a short burst of paper pieces falling over the board.
 type confetti []confetto
 
-func (c *confetti) burst(x, y float64, count int) {
+func (c *confetti) burst(x, y float64, count int, colors []color.NRGBA) {
 	for range count {
 		angle := -math.Pi/2 + (rand.Float64()-0.5)*1.6
 		speed := 420 + rand.Float64()*520
@@ -80,7 +80,7 @@ func (c *confetti) burst(x, y float64, count int) {
 			spin:  (rand.Float64() - 0.5) * 14,
 			w:     7 + rand.Float64()*6,
 			h:     4 + rand.Float64()*4,
-			clr:   colorConfetti[rand.IntN(len(colorConfetti))],
+			clr:   colors[rand.IntN(len(colors))],
 		})
 	}
 }

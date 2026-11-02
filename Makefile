@@ -13,6 +13,7 @@ build:
 web:
 	mkdir -p $(DIST)
 	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o $(DIST)/main.wasm ./cmd/main
+	wc -c < $(DIST)/main.wasm | tr -d ' ' > $(DIST)/main.wasm.size
 	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o $(DIST)/aiworker.wasm ./cmd/aiworker
 	install -m 644 "$(GOROOT)/lib/wasm/wasm_exec.js" wasm/index.html wasm/ai-pool.js wasm/ai-worker.js $(DIST)/
 

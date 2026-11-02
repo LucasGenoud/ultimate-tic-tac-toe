@@ -5,23 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ultimate Tic-Tac-Toe</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #f4f2ee; }
+    :root { --background: #f4f2ee; --track: #e2dfd8; --ink: #24262b; --muted: #6e717a; }
+    :root.dark { --background: #17181b; --track: #34363c; --ink: #e8e6e1; --muted: #9a9ca3; }
+    html, body { margin: 0; height: 100%; background: var(--background); }
     #loading {
-      position: fixed; inset: 0; display: grid; place-items: center;
-      font: 16px system-ui, sans-serif; color: #6e717a;
+      position: fixed; inset: 0; display: grid; place-content: center; gap: 12px;
+      font: 15px system-ui, sans-serif; color: var(--muted); text-align: center;
     }
+    #bar { width: 240px; height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
+    #fill { width: 0; height: 100%; background: var(--ink); transition: width 0.1s; }
   </style>
+  <script>
+    // Same theme as the game, which keeps its settings in local storage (cmd/main/storage_js.go).
+    try {
+      const saved = JSON.parse(localStorage.getItem("ultimate-tic-tac-toe.settings"));
+      const dark = saved ? saved.dark : matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.classList.toggle("dark", dark);
+    } catch {}
+  </script>
 </head>
 <body>
-  <div id="loading">Loading…</div>
+  <div id="loading">
+    <div id="label">Loading</div>
+    <div id="bar"><div id="fill"></div></div>
+  </div>
   <script src="wasm_exec.js"></script>
   <script src="ai-pool.js"></script>
   <script>
+    // Downloads main.wasm while showing its progress. The uncompressed size comes from
+    // main.wasm.size, written by the build, since servers usually compress the file.
+    async function download(url) {
+      const expected = await fetch(url + ".size").then((r) => (r.ok ? r.text() : "0")).then(Number).catch(() => 0);
+      const response = await fetch(url);
+      const total = expected || Number(response.headers.get("Content-Length")) || 0;
+      const reader = response.body.getReader();
+      const chunks = [];
+      let loaded = 0;
+      for (let read = await reader.read(); !read.done; read = await reader.read()) {
+        chunks.push(read.value);
+        loaded += read.value.length;
+        const mb = (loaded / 1e6).toFixed(1);
+        document.getElementById("label").textContent = total ? `Loading ${mb} of ${(total / 1e6).toFixed(1)} MB` : `Loading ${mb} MB`;
+        document.getElementById("fill").style.width = total ? `${Math.min(100, (loaded / total) * 100)}%` : "50%";
+      }
+      return new Blob(chunks).arrayBuffer();
+    }
+
     const go = new Go();
-    WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(({ instance }) => {
-      document.getElementById("loading").remove();
-      go.run(instance);
-    });
+    download("main.wasm")
+      .then((bytes) => WebAssembly.instantiate(bytes, go.importObject))
+      .then(({ instance }) => {
+        document.getElementById("loading").remove();
+        go.run(instance);
+      })
+      .catch((error) => {
+        document.getElementById("label").textContent = `Could not load the game: ${error.message}`;
+      });
   </script>
 </body>
 </html>
