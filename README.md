@@ -6,6 +6,38 @@ GO implementation of an ultimate tic-tac-toe with a monte carlo search tree AI
 
 Realised during the course "Programmation élégante en GO" from HEIA-FR. Initially forked, refactored and improved upon this project: https://github.com/LempekPL/GoTicTacToe
 
+## Playing
+
+- Click a cell inside a highlighted board. Your move decides which board your opponent plays in next.
+- Win three small boards in a row to win the game.
+- Play against the computer (levels 1 to 5 set how many seconds it thinks per move) or against a friend.
+- Hold `R` to reset the score, hold `Esc` to quit (desktop only).
+
+## Building
+
+Requires Go 1.25 or later.
+
+```bash
+make test    # rules and AI tests
+make build   # desktop binary
+make serve   # web build served on http://localhost:8080
+```
+
+## How the AI works
+
+The computer runs a Monte Carlo tree search on every CPU core at once (root parallelisation):
+each core grows its own tree for the allotted time, then the statistics of the candidate moves are merged.
+On the desktop each tree runs in a goroutine. In the browser, where WebAssembly runs Go on a single thread,
+the trees run in one Web Worker per core (`cmd/aiworker`, `wasm/ai-pool.js`), which also keeps the page responsive while it thinks.
+
+## Project layout
+
+- `lib/engine`: game rules, independent of rendering
+- `lib/ai`: tree search and its native and browser parallel runners
+- `lib/graphics`: resolution independent drawing helpers
+- `cmd/main`: the game (ebiten)
+- `cmd/aiworker`, `wasm/`: browser AI worker and web page
+
 ## License
 Copyright 2024 Lucas Genoud, Benoît Vorlet
 
